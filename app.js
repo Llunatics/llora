@@ -1,10 +1,10 @@
 /* ============================================================
-   Podomoro — pomodoro timer, liquid glass edition
+   Pomodoro — pomodoro timer, liquid glass edition
    Vanilla JS, no frameworks. State persisted in localStorage.
    ============================================================ */
 'use strict';
 
-const STORE_KEY = 'podomoro:v1';
+const STORE_KEY = 'pomodoro:v1';
 const RING_C = 2 * Math.PI * 88; // ≈ 552.92
 
 const BG_PRESETS = [
@@ -180,8 +180,8 @@ function render() {
 
   // tab title
   document.title = (T.running || T.remaining < durSec(T.mode))
-    ? `${mmss(T.remaining)} · Podomoro`
-    : 'Podomoro — Focus Timer';
+    ? `${mmss(T.remaining)} · Pomodoro`
+    : 'Pomodoro — Focus Timer';
 }
 
 /* ---------------- sound + notification ---------------- */
@@ -210,7 +210,7 @@ function notifyUser(finishedMode) {
   if (!S.notif || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
   try {
-    new Notification('Podomoro', {
+    new Notification('Pomodoro', {
       body: finishedMode === 'focus'
         ? 'Sesi fokus selesai. Waktunya istirahat.'
         : 'Istirahat selesai. Balik fokus lagi.',
@@ -498,7 +498,7 @@ function initSettings() {
 
   // clear data
   $('#clearData').addEventListener('click', () => {
-    if (confirm('Hapus semua data Podomoro yang tersimpan?')) {
+    if (confirm('Hapus semua data Pomodoro yang tersimpan?')) {
       localStorage.removeItem(STORE_KEY);
       location.reload();
     }

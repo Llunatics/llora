@@ -1,4 +1,4 @@
-# Podomoro
+# Pomodoro
 
 Pomodoro focus timer with an iOS-style **liquid glass** UI, full-screen video backgrounds, a draggable clock, and a built-in video playlist. Static site — no build step, no frameworks, just open `index.html`.
 
@@ -24,7 +24,7 @@ Pomodoro focus timer with an iOS-style **liquid glass** UI, full-screen video ba
   - Play / pause / next / prev / remove, click-to-play, auto-advance on track end.
   - Persisted in `localStorage`.
 - **Settings (top-right hamburger)** — background picker, custom video URL, clock style, position reset, durations, sound toggle, notification toggle, clear-all-data.
-- **Persistence** — everything (durations, clock style/position, playlist, background, toggles) lives in `localStorage` under `podomoro:v1`.
+- **Persistence** — everything (durations, clock style/position, playlist, background, toggles) lives in `localStorage` under `pomodoro:v1`.
 - **Responsive** — usable on mobile; playlist starts collapsed on small screens so the timer stays reachable.
 
 ## Usage
@@ -47,7 +47,7 @@ Then:
 
 - **Background presets** — edit `BG_PRESETS` in `app.js` (each entry: `id`, `name`, `url`). URLs must be direct video files (check `Content-Type: video/mp4` with `curl -sI` before adding).
 - **Glass look** — tweak `--glass-*` variables and `.glass` in `styles.css`.
-- **Storage key** — `podomoro:v1` in `localStorage`; the settings panel has a clear-all-data button.
+- **Storage key** — `pomodoro:v1` in `localStorage`; the settings panel has a clear-all-data button.
 
 ## Tech
 
