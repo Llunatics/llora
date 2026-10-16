@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    LLORA MARK — "the open circle"
+    · The ring: a focus cycle, a day, a breath — whole but never closed.
+      Its opening at the top-right is wabi-sabi: there is always room to grow.
+    · The leaf-l: flora. The lowercase l IS a leaf standing tall — its vein
+      the stem, its body the growth. The capital L grounds it like soil.
+      Focus is not forced; it is cultivated. Flora + aura.
+  -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="55%">
+      <stop offset="0" stop-color="#2EE57D" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#2EE57D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="leafgrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3CF08A"/>
+      <stop offset="0.55" stop-color="#2EE57D"/>
+      <stop offset="1" stop-color="#0FA355"/>
+    </linearGradient>
+  </defs>
+
+  <!-- deep forest ground -->
+  <rect x="0" y="0" width="512" height="512" rx="116" fill="#0D1F17"/>
+  <ellipse cx="256" cy="240" rx="195" ry="180" fill="url(#glow)"/>
+
+  <!-- open circle: 348° arc, gap centred at top-right (-45°) -->
+  <path d="M 388.1 149.0 A 170 170 0 1 1 363.0 123.9"
+        fill="none" stroke="#E0F9EB" stroke-width="15"
+        stroke-linecap="round" opacity="0.85"/>
+
+  <!-- the capital L: the soil, the ground -->
+  <path d="M 175 155 L 175 350 L 245 350"
+        fill="none" stroke="url(#leafgrad)" stroke-width="42"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- the lowercase l: a leaf standing tall, vein as its stem -->
+  <g transform="rotate(10 305 250)">
+    <path d="M 305 150 C 342 210, 342 292, 305 350 C 268 292, 268 210, 305 150 Z"
+          fill="url(#leafgrad)"/>
+    <path d="M 305 178 L 305 322" fill="none"
+          stroke="#0B3D24" stroke-width="7" stroke-linecap="round" opacity="0.45"/>
+  </g>
+</svg>
