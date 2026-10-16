@@ -1422,12 +1422,12 @@ function stopPlayback() {
 /* now-playing card: cover + title/artist/time + seek, kept in sync by render() */
 const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 function paintNpPlaying(playing) {
-  document.querySelectorAll('#plPlayPause, #npBigPlay').forEach(btn => {
-    const p = btn.querySelector('[data-icon-play]');
-    const s = btn.querySelector('[data-icon-pause]');
-    if (p) p.classList.toggle('hidden', playing);
-    if (s) s.classList.toggle('hidden', !playing);
-  });
+  const btn = $('#plPlayPause');
+  if (!btn) return;
+  const p = btn.querySelector('[data-icon-play]');
+  const s = btn.querySelector('[data-icon-pause]');
+  if (p) p.classList.toggle('hidden', playing);
+  if (s) s.classList.toggle('hidden', !playing);
 }
 function npMedia() {
   const t = S.playlist[S.currentTrack];
@@ -1589,8 +1589,6 @@ function initPlaylist() {
   };
   $('#plFab').addEventListener('click', () => togglePl());
   $('#plClose').addEventListener('click', () => togglePl(false));
-  const bigPlay = $('#npBigPlay');
-  if (bigPlay) bigPlay.addEventListener('click', () => togglePlayPause());
   const seek = $('#npSeek');
   if (seek) {
     seek.addEventListener('pointerdown', () => { npSeeking = true; });

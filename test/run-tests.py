@@ -411,9 +411,9 @@ with sync_playwright() as p:
     check("now-playing card structure",
           pg.eval_on_selector("#npCover", "el => el.tagName") == "IMG"
           and pg.eval_on_selector("#npTitle", "el => el.textContent") == "Nothing playing"
-          and pg.eval_on_selector("#npBigPlay",
+          and pg.evaluate("document.querySelector('#npBigPlay') === null")
+          and pg.eval_on_selector("#plPlayPause",
             "el => !el.querySelector('[data-icon-play]').classList.contains('hidden')")
-          and pg.eval_on_selector("#npBigPlay", "el => el.querySelectorAll('svg.icon').length") == 2
           and pg.eval_on_selector("#npSeek", "el => el.type") == "range")
     pg.fill("#plUrl", f"http://127.0.0.1:{PORT}/test-audio.mp3")
     pg.click("#plAdd")
@@ -434,20 +434,20 @@ with sync_playwright() as p:
           _ct > 0.5 and _np in (_fmt(_ct), _fmt(max(0, _ct - 1)), _fmt(_ct + 1))
           and pg.evaluate("T.running") == False,
           f"audio={_ct:.2f} shown={_np}")
-    check("big play button syncs state",
-          pg.eval_on_selector("#npBigPlay",
+    check("transport play button syncs state",
+          pg.eval_on_selector("#plPlayPause",
             "el => !el.querySelector('[data-icon-pause]').classList.contains('hidden')"))
-    pg.click("#npBigPlay")
+    pg.click("#plPlayPause")
     pg.wait_for_timeout(300)
-    check("big play button pauses",
+    check("transport play button pauses",
           pg.evaluate("document.querySelector('#plAudio').paused")
           and pg.eval_on_selector("#plPlayPause",
             "el => !el.querySelector('[data-icon-play]').classList.contains('hidden')"))
     pg.click("#plPlayPause")
     pg.wait_for_timeout(300)
-    check("small play button resumes",
+    check("transport play button resumes",
           not pg.evaluate("document.querySelector('#plAudio').paused")
-          and pg.eval_on_selector("#npBigPlay",
+          and pg.eval_on_selector("#plPlayPause",
             "el => !el.querySelector('[data-icon-pause]').classList.contains('hidden')"))
     # seek: in-memory 6s WAV via blob URL (seekable; the test HTTP server
     # has no Range support, so fixture files can't seek in this env)
