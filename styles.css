@@ -52,8 +52,8 @@ body {
   border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   cursor: pointer;
-  padding: 7px 11px;
-  font-size: 13px;
+  padding: 11px 14px;
+  font-size: 14px;
   transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
   display: inline-flex;
   align-items: center;
@@ -62,8 +62,8 @@ body {
 }
 .glass-btn:hover { background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.06)); transform: translateY(-1px); }
 .glass-btn:active { transform: translateY(1px) scale(.97); }
-.glass-btn.small { padding: 5px 10px; font-size: 12px; border-radius: 11px; }
-.glass-btn.wide { width: 100%; margin-top: 6px; }
+.glass-btn.small { padding: 9px 13px; font-size: 13px; border-radius: 12px; }
+.glass-btn.wide { width: 100%; margin-top: 8px; }
 .glass-btn.danger { border-color: rgba(255, 120, 120, 0.45); color: #ffc9c9; }
 .glass-btn.active { background: rgba(46, 229, 125, 0.20); border-color: rgba(46, 229, 125, 0.45); }
 
@@ -74,7 +74,7 @@ body {
 .bg-layer { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #0b0e14; }
 .bg-gradient {
   position: absolute; inset: 0;
-  background: linear-gradient(120deg, #1b2a4a, #3b1f4e 45%, #0e3a3a 80%, #1b2a4a);
+  background: linear-gradient(120deg, #0c1f16, #163825 45%, #07130d 80%, #0c1f16);
   background-size: 300% 300%;
   animation: bgdrift 24s ease-in-out infinite alternate;
 }
@@ -355,12 +355,12 @@ body.hening .chrome-fade { opacity: 0; pointer-events: none; }
 .icon-btn[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
 .icon-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
-/* ---------- Settings panel (compact) ---------- */
-.panel { position: fixed; z-index: 30; padding: 14px 16px; }
+/* ---------- Settings panel ---------- */
+.panel { position: fixed; z-index: 30; padding: 18px 20px; }
 
 #settingsPanel {
   top: 62px; right: 14px;
-  width: min(92vw, 320px);
+  width: min(92vw, 340px);
   max-height: calc(100vh - 90px);
   max-height: calc(100dvh - 90px);
   overflow-y: auto;
@@ -371,23 +371,23 @@ body.hening .chrome-fade { opacity: 0; pointer-events: none; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .panel-head h2 { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; }
 
-.set-group { margin-bottom: 14px; }
+.set-group { margin-bottom: 18px; }
 .set-group:last-child { margin-bottom: 2px; }
-.set-group h3 { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
+.set-group h3 { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; font-weight: 600; }
 
 /* glass dropdown button (shared look with the old native select) */
 .glass-select {
   width: 100%;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   background-color: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--glass-border);
-  border-radius: 11px;
-  padding: 9px 12px;
+  border-radius: 14px;
+  padding: 12px 14px;
   outline: none;
   cursor: pointer;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .glass-select:hover { background-color: rgba(255, 255, 255, 0.12); }
 .glass-select:focus-visible { border-color: var(--accent); }
@@ -408,8 +408,8 @@ body.hening .chrome-fade { opacity: 0; pointer-events: none; }
   border-radius: 14px;
 }
 .dd-list li {
-  padding: 9px 12px; border-radius: 9px;
-  font-size: 13px; color: var(--text);
+  padding: 11px 14px; border-radius: 10px;
+  font-size: 14px; color: var(--text);
   cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .dd-list li + li { margin-top: 2px; }
@@ -426,9 +426,9 @@ input[type="text"], input[type="url"], input[type="number"] {
   color: var(--text);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--glass-border);
-  border-radius: 11px;
-  padding: 7px 10px;
-  font-size: 13px;
+  border-radius: 14px;
+  padding: 11px 13px;
+  font-size: 14px;
   outline: none;
   width: 100%;
 }
@@ -442,39 +442,39 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
 .stepper {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 6px 0;
+  gap: 10px;
+  margin: 8px 0;
 }
 .step-label {
   flex: 1;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
 }
 .step-btn {
-  width: 30px; height: 30px;
+  width: 34px; height: 34px;
   border-radius: 9999px;
   padding: 0;
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
   flex: none;
 }
 .step-val {
-  min-width: 44px;
+  min-width: 52px;
   text-align: center;
-  font-size: 14px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  padding: 5px 4px;
+  border-radius: 12px;
+  padding: 8px 6px;
 }
 
-.check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 7px 0; cursor: pointer; }
+.check { display: flex; align-items: center; gap: 9px; font-size: 14px; margin: 9px 0; cursor: pointer; }
 /* custom checkbox: glass box, leaf-green fill, dark check */
 .check input[type="checkbox"] {
   appearance: none; -webkit-appearance: none;
-  width: 17px; height: 17px; flex: none; margin: 0;
+  width: 18px; height: 18px; flex: none; margin: 0;
   border-radius: 6px;
   border: 1.5px solid rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.07);
