@@ -432,7 +432,22 @@ with sync_playwright() as p:
           pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).clockMode") == True)
     check("clock mode tab title", pg.evaluate("document.title").startswith(_now),
           pg.evaluate("document.title"))
+    pg.click("#menuBtn")  # the Escape test earlier closed the panel
+    pg.wait_for_timeout(400)
+    pg.click("#chkClockSec")
+    pg.wait_for_timeout(300)
+    _sec = pg.eval_on_selector("[data-time]", "el => el.textContent")
+    check("seconds shown when enabled",
+          len(_sec) == 8 and _sec[2] == ":" and _sec[5] == ":", _sec)
+    check("seconds persist",
+          pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).clockSeconds") == True)
+    pg.click("#chkClockSec")
+    pg.wait_for_timeout(200)
+    check("seconds hidden when disabled",
+          len(pg.eval_on_selector("[data-time]", "el => el.textContent")) == 5)
     pg.evaluate("S.durations.focus = 25; resetSession();")  # undo the 0.1-min stepper test
+    pg.mouse.click(5, 5)  # blur the checkbox: shortcuts ignore keypresses inside inputs
+    pg.wait_for_timeout(200)
     pg.keyboard.press("t")
     pg.wait_for_timeout(300)
     check("T key toggles back to timer",

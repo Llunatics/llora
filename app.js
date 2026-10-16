@@ -56,6 +56,7 @@ const DEFAULT_STATE = {
   clockStyle: 'air',
   clockPos: null,          // {fx, fy} viewport fractions of clock center
   clockMode: false,        // true = wall-clock display instead of the timer
+  clockSeconds: false,     // show seconds in clock mode
   bgId: 'hujan-kaca',
   bgCustom: '',
   bgSound: false,         // background video sound on/off
@@ -350,7 +351,10 @@ function render() {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
   const mi = String(now.getMinutes()).padStart(2, '0');
-  const wallHTML = `<span class="mm">${hh}</span><span class="colon">:</span><span class="ss">${mi}</span>`;
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const wallHTML = S.clockSeconds
+    ? `<span class="mm">${hh}</span><span class="colon">:</span><span class="ss">${mi}</span><span class="colon">:</span><span class="ss">${ss}</span>`
+    : `<span class="mm">${hh}</span><span class="colon">:</span><span class="ss">${mi}</span>`;
   const timeHTML = S.clockMode ? wallHTML
     : T.mode === 'overtime' ? mmssPlus(T.overtimeSec || 0) : mmss(T.remaining);
 
@@ -1561,6 +1565,11 @@ function initSettings() {
   bindCheck('#chkAuto', 'autoContinue');
   bindCheck('#chkBreathe', 'breathe');
   bindCheck('#chkHening', 'hening');
+  const csec = $('#chkClockSec');
+  if (csec) {
+    csec.checked = !!S.clockSeconds;
+    csec.addEventListener('change', () => { S.clockSeconds = csec.checked; save(); render(); });
+  }
   const snd = $('#chkSound'); snd.checked = S.sound;
   snd.addEventListener('change', () => { S.sound = snd.checked; save(); });
   const nt = $('#chkNotif'); nt.checked = S.notif && 'Notification' in window && Notification.permission === 'granted';
