@@ -2,50 +2,60 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pomodoro — Focus Timer</title>
-<meta name="description" content="Pomodoro: pomodoro timer bergaya liquid glass dengan background video custom, jam draggable, dan playlist built-in.">
+<meta name="description" content="Pomodoro timer bergaya liquid glass: background video, jam floating yang bisa diseret, playlist tanpa chrome, mode hening.">
+<meta name="theme-color" content="#0b0e14">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- ===== Background layer ===== -->
+<!-- ===== Background layer: double-buffered videos ===== -->
 <div class="bg-layer" aria-hidden="true">
   <div class="bg-gradient"></div>
-  <video id="bgVideo" autoplay muted loop playsinline preload="auto"></video>
+  <video id="bgA" class="bg-video" muted loop playsinline preload="auto" crossorigin="anonymous"></video>
+  <video id="bgB" class="bg-video" muted loop playsinline preload="auto" crossorigin="anonymous"></video>
   <div class="bg-vignette"></div>
+  <canvas id="tintCanvas" width="16" height="16" hidden></canvas>
 </div>
 
 <!-- ===== Floating clock (no box, draggable) ===== -->
 <main id="clockCard" class="clock-float centered" aria-label="Timer Pomodoro">
+  <div class="clock-inner" id="clockInner">
 
-  <!-- Clock face: style A — floating digital -->
-  <section class="clock-face face-big" data-face="big" aria-label="Jam digital">
-    <div class="mode-label" data-mode-label>Fokus</div>
-    <div class="time-display" data-time>25:00</div>
-    <div class="session-dots" data-dots></div>
-  </section>
+    <!-- Style 1 — iOS lockscreen -->
+    <section class="clock-face face-lock" data-face="lock" aria-label="Jam digital">
+      <div class="mode-label" data-mode-label>Fokus</div>
+      <div class="time-display font-lock" data-time>25:00</div>
+      <div class="session-dots" data-dots></div>
+    </section>
 
-  <!-- Clock face: style B — minimal thin -->
-  <section class="clock-face face-min" data-face="min" aria-label="Jam digital minimal">
-    <div class="time-min"><span data-time>25:00</span></div>
-    <div class="mode-label-min"><span data-mode-label>Fokus</span> · <span data-cycle>Sesi 1</span></div>
-  </section>
+    <!-- Style 2 — editorial serif italic -->
+    <section class="clock-face face-serif" data-face="serif" aria-label="Jam serif">
+      <div class="mode-label" data-mode-label>Fokus</div>
+      <div class="time-display font-serif" data-time>25:00</div>
+      <div class="session-dots" data-dots></div>
+    </section>
 
-  <!-- Clock face: style C — analog progress dial -->
-  <section class="clock-face face-analog" data-face="analog" aria-label="Jam analog">
-    <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
-      <circle class="dial-track" cx="100" cy="100" r="88"></circle>
-      <circle class="dial-progress" data-ring cx="100" cy="100" r="88"></circle>
-      <line class="dial-hand" data-hand x1="100" y1="100" x2="100" y2="28"></line>
-      <circle class="dial-center" cx="100" cy="100" r="6"></circle>
-    </svg>
-    <div class="dial-time"><span data-time>25:00</span></div>
-    <div class="mode-label" data-mode-label>Fokus</div>
-  </section>
+    <!-- Style 3 — Swiss mono -->
+    <section class="clock-face face-mono" data-face="mono" aria-label="Jam mono">
+      <div class="mode-label" data-mode-label>Fokus</div>
+      <div class="time-display font-mono" data-time>25:00</div>
+      <div class="session-dots" data-dots></div>
+    </section>
+
+    <!-- Satu Hal: one intention line -->
+    <div class="one-thing no-drag" id="oneThingWrap">
+      <input id="oneThingInput" class="no-drag" maxlength="40" placeholder="Satu hal hari ini…" autocomplete="off" aria-label="Satu hal yang mau diselesaikan">
+      <button id="oneThingDone" class="one-done hidden" aria-label="Tandai selesai">✓</button>
+    </div>
+  </div>
 
   <!-- Controls: 3 small circular buttons -->
-  <div class="clock-controls no-drag">
+  <div class="clock-controls no-drag chrome-fade">
     <div class="btn-row">
       <button id="btnStartPause" class="glass-btn ctl-btn" aria-label="Mulai atau jeda">
         <svg viewBox="0 0 24 24" class="icon" data-icon-play><path d="M8 5v14l11-7z"/></svg>
@@ -64,7 +74,7 @@
 </main>
 
 <!-- ===== Hamburger (top-right) ===== -->
-<button id="menuBtn" class="glass icon-btn no-drag" aria-label="Buka pengaturan" aria-expanded="false">
+<button id="menuBtn" class="glass icon-btn no-drag chrome-fade" aria-label="Buka pengaturan" aria-expanded="false">
   <span></span><span></span><span></span>
 </button>
 
@@ -89,9 +99,9 @@
   <section class="set-group">
     <h3>Model jam</h3>
     <div class="style-picker" id="stylePicker">
-      <button data-style="big" class="glass-btn small">Digital</button>
-      <button data-style="min" class="glass-btn small">Minimal</button>
-      <button data-style="analog" class="glass-btn small">Analog</button>
+      <button data-style="lock" class="glass-btn small">Lockscreen</button>
+      <button data-style="serif" class="glass-btn small">Serif</button>
+      <button data-style="mono" class="glass-btn small">Mono</button>
     </div>
     <button id="resetClockPos" class="glass-btn small wide">Kembalikan posisi jam ke tengah</button>
   </section>
@@ -105,6 +115,16 @@
       <label>Sesi sblm pjg<input id="inCycle" type="number" min="1" max="12" step="1" value="4"></label>
     </div>
     <label class="check"><input id="chkAuto" type="checkbox" checked> Otomatis lanjut sesi berikut</label>
+    <label class="check"><input id="chkBreathe" type="checkbox" checked> Transisi napas 15 dtk sebelum istirahat</label>
+    <label class="check"><input id="chkHening" type="checkbox" checked> Mode Hening (sembunyikan UI saat fokus)</label>
+  </section>
+
+  <section class="set-group">
+    <h3>Suara alam · prosedural</h3>
+    <p class="hint" style="margin:0 0 6px">Dibuat langsung di browser, tanpa file, bisa offline.</p>
+    <label class="slider-row">Pink noise<input id="slPink" type="range" min="0" max="100" value="0"></label>
+    <label class="slider-row">Brown noise<input id="slBrown" type="range" min="0" max="100" value="0"></label>
+    <label class="slider-row">Gamma 40Hz<input id="slGamma" type="range" min="0" max="100" value="0"></label>
   </section>
 
   <section class="set-group">
@@ -119,19 +139,14 @@
   </section>
 </aside>
 
-<!-- ===== Playlist FAB (bottom-left) ===== -->
-<button id="plFab" class="glass pl-fab no-drag" aria-label="Buka playlist" aria-expanded="false">♪</button>
+<!-- ===== Playlist FAB (bottom-left) — titles only ===== -->
+<button id="plFab" class="glass pl-fab no-drag chrome-fade" aria-label="Buka playlist" aria-expanded="false">♪</button>
 
-<!-- ===== Playlist panel (compact, expands from FAB) ===== -->
+<!-- ===== Playlist panel: judul track saja, tanpa player box ===== -->
 <section id="playlistPanel" class="glass panel no-drag hidden" aria-label="Playlist">
   <div class="panel-head">
     <h2>Playlist</h2>
     <button id="plClose" class="glass-btn small" aria-label="Tutup playlist">✕</button>
-  </div>
-  <div class="pl-player">
-    <video id="plVideo" class="hidden" playsinline preload="metadata"></video>
-    <iframe id="plYT" class="hidden" title="YouTube player" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-    <div id="plEmpty" class="pl-empty">Belum ada video.<br>Tambahkan link di bawah.</div>
   </div>
   <div class="pl-controls">
     <button id="plPrev" class="glass-btn small" aria-label="Sebelumnya">⏮</button>
@@ -141,13 +156,18 @@
   </div>
   <ul id="plList" class="pl-list"></ul>
   <div class="pl-add">
-    <input id="plTitle" type="text" placeholder="Judul (opsional)" maxlength="80">
     <div class="row">
-      <input id="plUrl" type="url" placeholder="Link YouTube / .mp4" spellcheck="false">
+      <input id="plUrl" type="url" placeholder="Link YouTube / .mp3 / .mp4" spellcheck="false">
       <button id="plAdd" class="glass-btn small">＋</button>
     </div>
+    <p class="hint">Judul YouTube diambil otomatis. Player-nya disembunyikan.</p>
   </div>
 </section>
+
+<!-- Hidden media engines (never visible) -->
+<video id="plVideo" hidden playsinline preload="metadata"></video>
+<audio id="plAudio" hidden preload="metadata"></audio>
+<div id="ytHidden" aria-hidden="true"><div id="ytPlayer"></div></div>
 
 <div id="toast" class="glass toast hidden" role="status"></div>
 

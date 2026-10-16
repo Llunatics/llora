@@ -1,33 +1,23 @@
 # Pomodoro
 
-Pomodoro focus timer with an iOS-style **liquid glass** UI, full-screen video backgrounds, a draggable clock, and a built-in video playlist. Static site — no build step, no frameworks, just open `index.html`.
+Pomodoro focus timer with a true iOS-style **liquid glass** UI: self-hosted 1080p video backgrounds, a boxless floating clock, titles-only playlist, Mode Hening, and a procedural soundscape mixer. Static site — no build step, no frameworks, just open `index.html`.
 
 ![Desktop](assets/screenshot-desktop.png)
 ![Mobile](assets/screenshot-mobile.png)
 
 ## Features
 
-- **Liquid glass UI** — genuinely thin and airy: `rgba(255,255,255,0.08)` surfaces, `blur(10px) saturate(140%)`, 1px `rgba(255,255,255,0.13)` borders, subtle shadows. No heavy frosted panels.
-- **Video background** — full-screen looping `<video>` with a vignette overlay for readability.
-  - 4 built-in presets (verified hotlinkable MP4s on the Pexels CDN): Hujan di Kaca, Hujan Hutan, Jalan Hujan, Kota Malam.
-  - Paste any direct `.mp4` / `.webm` URL as a custom background.
-  - Robust playback: retries `play()` on `canplay`, and if a video never loads you get a small toast ("Background gagal dimuat, coba preset lain") instead of a dead screen — the animated gradient fallback keeps showing underneath.
-- **Pomodoro timer**
-  - Custom focus / short break / long break durations (minutes, decimals allowed) + sessions-before-long-break.
-  - Start / pause / reset / skip, progress bar, session dots, auto-continue toggle.
-  - Tab title shows remaining time; WebAudio chime + optional browser Notification on session end.
-- **Draggable clock** — floating digits, no box or card. Drag it anywhere (mouse + touch via Pointer Events); position persists in `localStorage`.
-  - 3 switchable faces: floating digital, minimal thin, analog progress dial.
-  - 3 small circular controls (start/pause, reset, skip), thin progress bar, 6px session dots, tiny uppercase mode label.
-  - A one-time toast hints the drag on first visit — no permanent labels.
-  - One-click reset back to center from settings.
-- **Playlist (bottom-left)** — a small 44px circular glass button; tap to expand a compact panel (250px):
-  - Add videos one by one: YouTube links (watch / youtu.be / embed / shorts) or direct `.mp4` / `.webm`.
-  - Play / pause / next / prev / remove, click-to-play, auto-advance on track end.
-  - Persisted in `localStorage`.
-- **Settings (top-right hamburger, 40px)** — background picker, custom video URL, clock style, position reset, durations, sound toggle, notification toggle, clear-all-data. Compact 13px type.
-- **Persistence** — everything (durations, clock style/position, playlist, background, toggles) lives in `localStorage` under `pomodoro:v1`.
-- **Responsive** — compact on mobile; nothing dominates the screen except the background.
+- **Thin liquid glass** — `linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02))`, `blur(12px) saturate(180%) contrast(105%)`, 1px `rgba(255,255,255,.14)` border, specular top-rim highlight. **Adaptive tint**: the dominant color of the current video frame is sampled every 2s (offscreen 16×16 canvas) and fed into `--ambient` for a subtle glow inside every glass surface.
+- **Video backgrounds, 1080p self-hosted** — four ~15s seamless H.264 loops (Hujan di Kaca, Hutan Hijau, Kota Senja, Senja Hujan) live on a dedicated `assets` branch and served via jsDelivr with CORS enabled. Double-buffered switching: the new clip preloads in a hidden `<video>` and crossfades 800ms on `canplaythrough` — the visible video's `src` is never yanked mid-play. If a clip fails, a toast says so and the animated gradient fallback stays.
+- **Pomodoro timer** — `Date.now()`-delta engine (no drift), 250ms tick, `Math.ceil` display, custom focus/short/long durations (decimals allowed), sessions-before-long-break, start/pause/reset/skip, progress bar, session dots, auto-continue. **Transisi napas**: a 15s breathing phase (4-7-8 cadence, clock scales 1.0→1.06) between focus end and break instead of a jarring alarm — soft chime included. Tab title counts down; optional browser Notification.
+- **Boxless floating clock** — digits only, no card. Drag anywhere (Pointer Events + `setPointerCapture`, `touch-action: none`); position stored as viewport fractions so it survives resize. Three typefaces, system fonts only: iOS lockscreen (SF, weight 200), editorial serif italic, Swiss mono — all with `tabular-nums`, −0.04em tracking, dual-layer text shadow. The colon breathes (opacity .95↔.3) while running. Pickup spring: `scale(1.03)` + brightness with a springy bezier.
+- **Mode Hening** — the signature moment: after 6s without pointer movement while the timer runs, every chrome element (buttons, FAB, hamburger) fades to invisible; only the floating clock and the video remain. Any movement wakes it.
+- **Satu Hal** — one 40-character intention line under the clock (per-day). It dissolves with a blur-out animation when the focus session ends or you tap ✓.
+- **Soundscape mixer** — fully procedural WebAudio, zero files, works offline: pink noise (Paul Kellet filter), brown noise, and a 40Hz binaural gamma beat (220Hz L / 260Hz R). Three mini sliders in settings.
+- **Playlist, titles only** — a 44px ♪ FAB expands to a compact panel listing **only clean track titles** — no YouTube box, ever. Native `<audio>`/`<video>` engines stay hidden; YouTube plays through a 1×1px hidden IFrame player (auto-advance on end, graceful toast for embed-disabled videos). YouTube titles auto-fetched via noembed; Media Session API gives lock-screen controls for native audio.
+- **Settings (hamburger, top-right)** — background presets + custom URL, clock style, position reset, durations, Mode Hening, breathing transition, soundscape sliders, sound/notification toggles, clear-all-data.
+- **PWA-ready** — `manifest.json` (`display: standalone`) + hand-drawn SVG/PNG icons; install it to the home screen for fullscreen.
+- **Persistence** — one versioned key, `pomodoro:v3` (migrates v1/v2 gracefully).
 
 ## Usage
 
@@ -38,29 +28,26 @@ open index.html
 python3 -m http.server 8000
 ```
 
-Then:
-
-1. Press play on the clock to start a 25-minute focus session.
-2. Drag the clock anywhere you like.
-3. Open the hamburger (top-right) to change background, clock style, or durations.
-4. Tap the ♪ button (bottom-left) and paste YouTube / MP4 links for background tunes.
-
 ## Customization
 
-- **Background presets** — edit `BG_PRESETS` in `app.js` (each entry: `id`, `name`, `url`). URLs must be direct video files (check `Content-Type: video/mp4` with `curl -sI` before adding).
-- **Glass look** — tweak `--glass-*` variables and `.glass` in `styles.css`.
-- **Storage key** — `pomodoro:v1` in `localStorage`; the settings panel has a clear-all-data button.
+- **Background presets** — edit `BG_PRESETS` in `app.js`. The bundled clips live on the `assets` branch (`videos/*.mp4`, ~15s 1080p H.264, no audio); serve your own via any CORS-enabled static host.
+- **Glass look** — `--glass-*` and `--ambient` in `styles.css`.
+- **Storage key** — `pomodoro:v3`; clear-all-data is in the settings panel.
 
 ## Tech
 
 - Vanilla HTML + CSS + JS. Zero dependencies, zero build.
-- Pointer Events for drag (mouse + touch), WebAudio API for the chime, Notification API for session alerts, `localStorage` for persistence.
-- Tested with real click automation (Playwright + headless Chromium): 27 assertions covering timer start/pause/reset/skip, clock style switching, drag + position persistence, background preset switching, playlist add/open/close, and settings — plus screenshot review at 390×844 and 1440×900.
+- Pointer Events drag, WebAudio (chime + procedural noise), Notification API, Media Session API, YouTube IFrame API (lazy), `localStorage`.
+- Tested with real click automation (Playwright + headless Chromium): timer accuracy, mode cycling incl. breathing phase, drag + fraction persistence, all 3 clock styles, playlist add/play/remove (titles-only, no visible iframe), soundscape toggles, Mode Hening, all 4 background presets via double-buffer — plus screenshot review at 390×844 and 1440×900.
+
+## Credits
+
+Background clips are trimmed from freely licensed Wikimedia Commons videos: raindrops on glass (Radevormwald), misty forest (From the mountain high), Singapore Chinatown at night, and a rainy day campsite in Slovenia. Re-encoded to 1080p H.264 loops; see the file pages on Wikimedia Commons for authors and exact licenses.
 
 ## Known limitations
 
-- YouTube embeds can't auto-detect track end (no YT IFrame API), so auto-advance works for direct video files only.
-- Background videos are streamed from third-party CDNs; if one goes down, the gradient fallback shows and you can paste a replacement URL.
+- Headless test environments without video decode fall back to the gradient; playback is verified via `curl` + local-file code paths.
+- YouTube embeds need the IFrame API (loaded lazily on first YouTube track).
 
 ## License
 
