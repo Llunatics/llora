@@ -97,7 +97,7 @@ with sync_playwright() as p:
     # accordion groups start collapsed; expand them so controls are clickable
     check("accordion groups collapsed by default",
           pg.evaluate("[...document.querySelectorAll('.set-group.acc')].every(s => s.dataset.open !== 'true')"))
-    for acc in ["bg", "clock", "timer", "nature", "sound"]:
+    for acc in ["bg", "clock", "timer", "nature", "sound", "data"]:
         pg.evaluate(f"document.querySelector('.set-group.acc[data-acc=\"{acc}\"] .acc-head').click()")
     pg.wait_for_timeout(400)
     check("accordion expands on head click",
@@ -107,6 +107,11 @@ with sync_playwright() as p:
           pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).acc.timer") == True)
     check("no inner close button (single X via hamburger)",
           pg.eval_on_selector_all("#settingsClose", "els => els.length") == 0)
+    check("share+data merged into one Data accordion",
+          pg.evaluate("document.querySelector('.set-group.acc[data-acc=\"data\"]') !== null")
+          and pg.eval_on_selector_all(".set-group > h3", "els => els.length") == 0
+          and pg.evaluate("document.querySelector('.set-group.acc[data-acc=\"data\"] #vibeBtn') !== null")
+          and pg.evaluate("document.querySelector('.set-group.acc[data-acc=\"data\"] #clearData') !== null"))
     check("no native selects left (custom glass dropdowns)",
           pg.eval_on_selector_all("select", "els => els.length") == 0)
     check("bg dropdown: 5 presets + custom",
@@ -408,6 +413,8 @@ with sync_playwright() as p:
     # --- now-playing card ---
     check("paste hint removed (clean panel)",
           pg.eval_on_selector_all(".pl-add .hint", "els => els.length") == 0)
+    check("no double close button in playlist head",
+          pg.evaluate("document.querySelector('#plClose') === null"))
     check("now-playing card structure",
           pg.eval_on_selector("#npCover", "el => el.tagName") == "IMG"
           and pg.eval_on_selector("#npTitle", "el => el.textContent") == "Nothing playing"
@@ -420,6 +427,14 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1500)
     items = pg.eval_on_selector_all("#plList li .t", "els => els.map(e => e.textContent)")
     check("track added with title", len(items) == 1 and "test audio" in items[0], str(items))
+    check("track titles are centered",
+          pg.eval_on_selector("#plList li .t", "el => getComputedStyle(el).textAlign") == "center")
+    check("only the track list scrolls, not the panel",
+          pg.eval_on_selector("#playlistPanel", "el => getComputedStyle(el).overflowY") == "hidden"
+          and pg.eval_on_selector("#plList", "el => getComputedStyle(el).overflowY") == "auto")
+    check("cover is 60px",
+          pg.eval_on_selector("#npCover", "el => true") and
+          pg.evaluate("document.querySelector('.np-cover').getBoundingClientRect().width") == 60)
     check("playlist yt engine stays 1x1 hidden",
           pg.eval_on_selector("#ytHidden", "el => el.offsetWidth") <= 2)
     pg.click("#plList li")

@@ -1588,7 +1588,6 @@ function initPlaylist() {
     $('#plFab').setAttribute('aria-expanded', String(willOpen));
   };
   $('#plFab').addEventListener('click', () => togglePl());
-  $('#plClose').addEventListener('click', () => togglePl(false));
   const seek = $('#npSeek');
   if (seek) {
     seek.addEventListener('pointerdown', () => { npSeeking = true; });

@@ -111,10 +111,13 @@
     </div></div>
   </section>
 
-  <section class="set-group">
-    <h3>Share</h3>
+  <section class="set-group acc" data-acc="data">
+    <button class="acc-head" aria-expanded="false"><span>Data</span><svg class="acc-chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="acc-body"><div class="acc-inner">
     <button id="vibeBtn" class="glass-btn small wide" title="Copy Vibe">✦ Copy Vibe</button>
     <p class="hint">Copy a link with your video, clock style, position, sounds &amp; durations — anyone opening it tries the same vibe.</p>
+    <button id="clearData" class="glass-btn small danger wide">Erase all saved data</button>
+    </div></div>
   </section>
 
   <section class="set-group acc" data-acc="timer">
@@ -169,10 +172,6 @@
     </div></div>
   </section>
 
-  <section class="set-group">
-    <h3>Data</h3>
-    <button id="clearData" class="glass-btn small danger wide">Erase all saved data</button>
-  </section>
 </aside>
 
 <!-- ===== Playlist FAB (bottom-left) — titles only ===== -->
@@ -182,7 +181,6 @@
 <section id="playlistPanel" class="glass panel no-drag hidden" aria-label="Playlist">
   <div class="panel-head">
     <h2>Playlist</h2>
-    <button id="plClose" class="glass-btn small" aria-label="Close playlist">✕</button>
   </div>
   <div class="np">
     <div class="np-cover">
