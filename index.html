@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Podomoro — Focus Timer</title>
+<meta name="description" content="Podomoro: pomodoro timer bergaya liquid glass dengan background video custom, jam draggable, dan playlist built-in.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ===== Background layer ===== -->
+<div class="bg-layer" aria-hidden="true">
+  <div class="bg-gradient"></div>
+  <video id="bgVideo" autoplay muted loop playsinline preload="auto"></video>
+  <div class="bg-overlay"></div>
+</div>
+
+<!-- ===== Draggable timer clock card ===== -->
+<main id="clockCard" class="glass clock-card centered" aria-label="Timer Pomodoro">
+  <div class="drag-hint" id="dragHint">seret aku ke mana aja</div>
+
+  <!-- Clock face: style A — big glass digital -->
+  <section class="clock-face face-big" data-face="big" aria-label="Jam digital besar">
+    <div class="mode-label" data-mode-label>Fokus</div>
+    <div class="time-big" data-time>25:00</div>
+    <div class="session-dots" data-dots></div>
+  </section>
+
+  <!-- Clock face: style B — minimal thin -->
+  <section class="clock-face face-min" data-face="min" aria-label="Jam digital minimal">
+    <div class="time-min"><span data-time>25:00</span></div>
+    <div class="mode-label-min"><span data-mode-label>Fokus</span> · <span data-cycle>Sesi 1</span></div>
+  </section>
+
+  <!-- Clock face: style C — analog progress dial -->
+  <section class="clock-face face-analog" data-face="analog" aria-label="Jam analog">
+    <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="dial-track" cx="100" cy="100" r="88"></circle>
+      <circle class="dial-progress" data-ring cx="100" cy="100" r="88"></circle>
+      <line class="dial-hand" data-hand x1="100" y1="100" x2="100" y2="28"></line>
+      <circle class="dial-center" cx="100" cy="100" r="6"></circle>
+    </svg>
+    <div class="dial-time"><span data-time>25:00</span></div>
+    <div class="mode-label" data-mode-label>Fokus</div>
+  </section>
+
+  <!-- Controls -->
+  <div class="clock-controls no-drag">
+    <div class="btn-row">
+      <button id="btnStartPause" class="glass-btn primary" aria-label="Mulai atau jeda">
+        <svg viewBox="0 0 24 24" class="icon" data-icon-play><path d="M8 5v14l11-7z"/></svg>
+        <svg viewBox="0 0 24 24" class="icon hidden" data-icon-pause><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button id="btnReset" class="glass-btn" aria-label="Ulangi sesi" title="Ulangi">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/></svg>
+      </button>
+      <button id="btnSkip" class="glass-btn" aria-label="Lewati sesi" title="Lewati">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+    </div>
+    <div class="progress-track" aria-hidden="true"><div class="progress-fill" data-progress></div></div>
+    <div class="status-line"><span data-cycle>Sesi 1</span> · <span data-next>berikutnya: Istirahat</span></div>
+  </div>
+</main>
+
+<!-- ===== Hamburger (top-right) ===== -->
+<button id="menuBtn" class="glass icon-btn no-drag" aria-label="Buka pengaturan" aria-expanded="false">
+  <span></span><span></span><span></span>
+</button>
+
+<!-- ===== Settings panel ===== -->
+<aside id="settingsPanel" class="glass panel hidden no-drag" aria-label="Pengaturan">
+  <div class="panel-head">
+    <h2>Pengaturan</h2>
+    <button id="settingsClose" class="glass-btn small" aria-label="Tutup pengaturan">✕</button>
+  </div>
+
+  <section class="set-group">
+    <h3>Background video</h3>
+    <div class="preset-grid" id="presetGrid"></div>
+    <label class="field-label" for="customBgUrl">URL video custom (.mp4 / .webm)</label>
+    <div class="row">
+      <input id="customBgUrl" type="url" placeholder="https://…/video.mp4" spellcheck="false">
+      <button id="applyBgUrl" class="glass-btn small">Terapkan</button>
+    </div>
+    <p class="hint">Tempel link video langsung. Kalau gagal dimuat, background gradien yang tampil.</p>
+  </section>
+
+  <section class="set-group">
+    <h3>Model jam</h3>
+    <div class="style-picker" id="stylePicker">
+      <button data-style="big" class="glass-btn small">Kaca besar</button>
+      <button data-style="min" class="glass-btn small">Minimal tipis</button>
+      <button data-style="analog" class="glass-btn small">Analog dial</button>
+    </div>
+    <button id="resetClockPos" class="glass-btn small wide">Kembalikan posisi jam ke tengah</button>
+  </section>
+
+  <section class="set-group">
+    <h3>Durasi timer (menit)</h3>
+    <div class="dur-grid">
+      <label>Fokus<input id="inFocus" type="number" min="0.1" step="0.5" value="25"></label>
+      <label>Istirahat<input id="inShort" type="number" min="0.1" step="0.5" value="5"></label>
+      <label>Istirahat panjang<input id="inLong" type="number" min="0.1" step="0.5" value="15"></label>
+      <label>Sesi sblm istirahat pjg<input id="inCycle" type="number" min="1" max="12" step="1" value="4"></label>
+    </div>
+    <label class="check"><input id="chkAuto" type="checkbox" checked> Otomatis lanjut ke sesi berikutnya</label>
+  </section>
+
+  <section class="set-group">
+    <h3>Suara & notifikasi</h3>
+    <label class="check"><input id="chkSound" type="checkbox" checked> Bunyi saat sesi selesai</label>
+    <label class="check"><input id="chkNotif" type="checkbox"> Notifikasi browser saat sesi selesai</label>
+  </section>
+
+  <section class="set-group">
+    <h3>Data</h3>
+    <button id="clearData" class="glass-btn small danger wide">Hapus semua data tersimpan</button>
+  </section>
+</aside>
+
+<!-- ===== Playlist (bottom-left) ===== -->
+<section id="playlistPanel" class="glass panel no-drag" aria-label="Playlist">
+  <button id="plToggle" class="panel-head pl-head" aria-expanded="true">
+    <h2>Playlist</h2>
+    <span class="chev" aria-hidden="true">▾</span>
+  </button>
+  <div class="pl-body" id="plBody">
+    <div class="pl-player">
+      <video id="plVideo" class="hidden" playsinline preload="metadata"></video>
+      <iframe id="plYT" class="hidden" title="YouTube player" allow="accelerometer; autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+      <div id="plEmpty" class="pl-empty">Belum ada video.<br>Tambahkan link di bawah.</div>
+    </div>
+    <div class="pl-controls">
+      <button id="plPrev" class="glass-btn small" aria-label="Sebelumnya">⏮</button>
+      <button id="plPlayPause" class="glass-btn small" aria-label="Putar atau jeda">▶</button>
+      <button id="plNext" class="glass-btn small" aria-label="Berikutnya">⏭</button>
+      <span id="plNow" class="pl-now">—</span>
+    </div>
+    <ul id="plList" class="pl-list"></ul>
+    <div class="pl-add">
+      <input id="plTitle" type="text" placeholder="Judul (opsional)" maxlength="80">
+      <div class="row">
+        <input id="plUrl" type="url" placeholder="Link YouTube / .mp4" spellcheck="false">
+        <button id="plAdd" class="glass-btn small">Tambah</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="toast" class="glass toast hidden" role="status"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
