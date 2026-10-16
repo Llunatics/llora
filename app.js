@@ -58,12 +58,15 @@ const DEFAULT_STATE = {
   bgId: 'hujan-kaca',
   bgCustom: '',
   bgSound: false,         // background video sound on/off
+  dimBg: 0,               // background dimmer 0-70 (%)
+  clockSize: 100,         // clock size 70-140 (%)
   scrim: { a: 55, spread: 85 }, // clock backdrop: darkness 0-80 (%), spread 0-160 (px)
   playlist: [],            // [{id, title, url, type, ytId}]
   currentTrack: -1,
-  soundscape: { pink: 0, brown: 0, gamma: 0 },
+  soundscape: { pink: 0, brown: 0, white: 0, gamma: 0 },
   oneThing: { text: '', date: '' },
   stats: { date: '', focusSec: 0 },  // today's banked focus seconds
+  acc: {},                // accordion open state per settings group
 };
 
 /* ---------------- state ---------------- */
@@ -80,6 +83,7 @@ function loadState() {
             durations: Object.assign({}, DEFAULT_STATE.durations, p.durations || {}),
             soundscape: Object.assign({}, DEFAULT_STATE.soundscape, p.soundscape || {}),
             scrim: Object.assign({}, DEFAULT_STATE.scrim, p.scrim || {}),
+            acc: Object.assign({}, p.acc || {}),
             oneThing: Object.assign({}, DEFAULT_STATE.oneThing, p.oneThing || {}),
           });
         } catch { /* skip bad legacy */ }
@@ -94,6 +98,7 @@ function loadState() {
         soundscape: Object.assign({}, DEFAULT_STATE.soundscape, p.soundscape || {}),
         scrim: Object.assign({}, DEFAULT_STATE.scrim, p.scrim || {}),
         oneThing: Object.assign({}, DEFAULT_STATE.oneThing, p.oneThing || {}),
+        acc: Object.assign({}, p.acc || {}),
       });
     }
   } catch { return fresh(); }
@@ -604,6 +609,41 @@ function applyScrim() {
   card.style.setProperty('--scrim-spread', Math.min(160, Math.max(0, S.scrim.spread || 0)) + 'px');
 }
 
+/* background dimmer: black overlay opacity over the video */
+function applyDimBg() {
+  const el = $('#bgDim');
+  if (!el) return;
+  el.style.opacity = (Math.min(70, Math.max(0, S.dimBg || 0)) / 100).toFixed(2);
+}
+
+/* clock size: independent `scale` property so it never fights the
+   centering transform or the breathing animation */
+function applyClockSize() {
+  const card = $('#clockCard');
+  if (!card) return;
+  card.style.scale = String(Math.min(140, Math.max(70, S.clockSize || 100)) / 100);
+}
+
+/* collapsible settings groups; open state persists in S.acc */
+function initAccordion() {
+  document.querySelectorAll('.set-group.acc').forEach(sec => {
+    const key = sec.dataset.acc;
+    const head = sec.querySelector('.acc-head');
+    if (!head) return;
+    const set = (open) => {
+      sec.dataset.open = String(open);
+      head.setAttribute('aria-expanded', String(open));
+      S.acc = S.acc || {};
+      S.acc[key] = open;
+      save();
+    };
+    head.addEventListener('click', () => set(sec.dataset.open !== 'true'));
+    const open = !!(S.acc && S.acc[key]);
+    sec.dataset.open = String(open);
+    head.setAttribute('aria-expanded', String(open));
+  });
+}
+
 /* background video sound toggle: muted <video> elements + the YouTube
    background iframe (via enablejsapi postMessage) */
 function applyBgSound() {
@@ -828,7 +868,11 @@ function buildDropdown(wrapSel, items, current, onPick) {
   });
   document.addEventListener('click', (e) => { if (!list.contains(e.target)) closeAllDropdowns(); });
   window.addEventListener('resize', closeAllDropdowns);
-  window.addEventListener('scroll', () => closeAllDropdowns(), true);
+  window.addEventListener('scroll', (e) => {
+    // scrolling the option list itself must NOT close it (capture phase sees it too)
+    if (e.target && e.target.closest && e.target.closest('.dd-list')) return;
+    closeAllDropdowns();
+  }, true);
   wrap.appendChild(btn);
   paint();
   return { paint };
@@ -959,13 +1003,15 @@ function noiseBuffer(ctx, kind) {
       d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
       b6 = w * 0.115926;
     }
-  } else { // brown
+  } else if (kind === 'brown') {
     let last = 0;
     for (let i = 0; i < len; i++) {
       const w = Math.random() * 2 - 1;
       last = (last + 0.02 * w) / 1.02;
       d[i] = last * 3.5;
     }
+  } else { // white
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
   }
   return buf;
 }
@@ -999,6 +1045,11 @@ function scEnsure() {
   brownSrc.buffer = noiseBuffer(ctx, 'brown'); brownSrc.loop = true;
   const brownGain = ctx.createGain(); brownGain.gain.value = 0;
   brownSrc.connect(brownGain).connect(airFilter); brownSrc.start();
+  // white noise (airy, through the same breathing lowpass)
+  const whiteSrc = ctx.createBufferSource();
+  whiteSrc.buffer = noiseBuffer(ctx, 'white'); whiteSrc.loop = true;
+  const whiteGain = ctx.createGain(); whiteGain.gain.value = 0;
+  whiteSrc.connect(whiteGain).connect(airFilter); whiteSrc.start();
   // binaural gamma 40Hz: 220Hz L / 260Hz R
   const oL = ctx.createOscillator(); oL.frequency.value = 220;
   const oR = ctx.createOscillator(); oR.frequency.value = 260;
@@ -1009,7 +1060,7 @@ function scEnsure() {
   const gammaGain = ctx.createGain(); gammaGain.gain.value = 0;
   merger.connect(gammaGain).connect(SC.master);
   oL.start(); oR.start();
-  SC.nodes = { pink: pinkGain, brown: brownGain, gamma: gammaGain };
+  SC.nodes = { pink: pinkGain, brown: brownGain, white: whiteGain, gamma: gammaGain };
   return ctx;
 }
 function scSet(kind, level) { // level 0..1
@@ -1046,10 +1097,16 @@ function toggleMute() {
   try { if (ytPlayer) { scMuted ? ytPlayer.mute() : ytPlayer.unMute(); } } catch {}
   toast(scMuted ? 'Sound muted.' : 'Sound on.');
 }
-/* webkit track fill: paint the filled portion via --fill */
-function paintRangeFill(el) { el.style.setProperty('--fill', (el.value || 0) + '%'); }
+/* webkit track fill: paint the filled portion via --fill (min/max aware) */
+function paintRangeFill(el) {
+  const min = parseFloat(el.min) || 0;
+  const max = parseFloat(el.max);
+  const v = parseFloat(el.value) || 0;
+  const pct = (isFinite(max) && max > min) ? Math.min(100, Math.max(0, (v - min) / (max - min) * 100)) : 0;
+  el.style.setProperty('--fill', pct.toFixed(1) + '%');
+}
 function applySoundscapeLevels() {
-  const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slGamma', 'gamma']];
+  const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slWhite', 'white'], ['#slGamma', 'gamma']];
   binds.forEach(([sel, kind]) => {
     $(sel).value = S.soundscape[kind] || 0;
     paintRangeFill($(sel));
@@ -1062,7 +1119,7 @@ function applySoundscapeLevels() {
 }
 function initSoundscape() {
   applySoundscapeLevels();
-  const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slGamma', 'gamma']];
+  const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slWhite', 'white'], ['#slGamma', 'gamma']];
   binds.forEach(([sel, kind]) => {
     $(sel).addEventListener('input', (e) => { paintRangeFill(e.target); scSet(kind, e.target.value / 100); });
   });
@@ -1327,6 +1384,19 @@ function initSettings() {
   // no inner close button: the hamburger outside morphs into ✕
 
   renderBgSelect();
+  applyDimBg();
+  const slDim = $('#slDimBg');
+  if (slDim) {
+    slDim.value = S.dimBg || 0; paintRangeFill(slDim);
+    slDim.addEventListener('input', () => { S.dimBg = +slDim.value; paintRangeFill(slDim); applyDimBg(); save(); });
+  }
+  applyClockSize();
+  const slSize = $('#slClockSize');
+  if (slSize) {
+    slSize.value = S.clockSize || 100; paintRangeFill(slSize);
+    slSize.addEventListener('input', () => { S.clockSize = +slSize.value; paintRangeFill(slSize); applyClockSize(); save(); });
+  }
+  initAccordion();
   if (S.bgCustom) $('#customBgUrl').value = S.bgCustom;
   $('#applyBgUrl').addEventListener('click', () => {
     const url = $('#customBgUrl').value.trim();
@@ -1425,8 +1495,9 @@ function collectVibe() {
     c: S.clockStyle,
     x: S.clockPos ? +S.clockPos.fx.toFixed(4) : undefined,
     y: S.clockPos ? +S.clockPos.fy.toFixed(4) : undefined,
-    p: S.soundscape.pink, b: S.soundscape.brown, g: S.soundscape.gamma,
+    p: S.soundscape.pink, b: S.soundscape.brown, w: S.soundscape.white, g: S.soundscape.gamma,
     sa: S.scrim.a, sb: S.scrim.spread,
+    db: S.dimBg, cs: S.clockSize,
     f: S.durations.focus, s: S.durations.short, l: S.durations.long, cy: S.cycle,
     tu: (t && safeHttpsUrl(t.url)) || undefined,
   };
@@ -1447,9 +1518,11 @@ function decodeVibe(hash) {
     if (v.vu) { const u = safeHttpsUrl(v.vu); if (u) out.vu = u; }
     if (CLOCK_IDS.includes(v.c)) out.c = v.c;
     for (const k of ['x', 'y']) if (isFinite(+v[k]) && +v[k] >= 0 && +v[k] <= 1) out[k] = +v[k];
-    for (const k of ['p', 'b', 'g']) if (isFinite(+v[k])) out[k] = Math.min(100, Math.max(0, Math.round(+v[k])));
+    for (const k of ['p', 'b', 'w', 'g']) if (isFinite(+v[k])) out[k] = Math.min(100, Math.max(0, Math.round(+v[k])));
     if (isFinite(+v.sa)) out.sa = Math.min(80, Math.max(0, Math.round(+v.sa)));
     if (isFinite(+v.sb)) out.sb = Math.min(160, Math.max(0, Math.round(+v.sb)));
+    if (isFinite(+v.db)) out.db = Math.min(70, Math.max(0, Math.round(+v.db)));
+    if (isFinite(+v.cs)) out.cs = Math.min(140, Math.max(70, Math.round(+v.cs)));
     for (const [k, lo, hi] of [['f', 0.1, 999], ['s', 0.1, 999], ['l', 0.1, 999]])
       if (isFinite(+v[k])) out[k] = Math.min(hi, Math.max(lo, +v[k]));
     if (isFinite(+v.cy)) out.cy = Math.min(12, Math.max(1, Math.round(+v.cy)));
@@ -1483,11 +1556,20 @@ function applyVibeSession(v) {
   else if (v.v) { S.bgId = v.v; S.bgCustom = ''; $('#customBgUrl').value = ''; }
   if (v.c) setClockStyle(v.c);
   if (v.x !== undefined && v.y !== undefined) { S.clockPos = { fx: v.x, fy: v.y }; applyClockPos(); }
-  if (v.p !== undefined || v.b !== undefined || v.g !== undefined) {
+  if (v.p !== undefined || v.b !== undefined || v.w !== undefined || v.g !== undefined) {
     if (v.p !== undefined) S.soundscape.pink = v.p;
     if (v.b !== undefined) S.soundscape.brown = v.b;
+    if (v.w !== undefined) S.soundscape.white = v.w;
     if (v.g !== undefined) S.soundscape.gamma = v.g;
     applySoundscapeLevels();
+  }
+  if (v.db !== undefined) {
+    S.dimBg = v.db; applyDimBg();
+    const el = $('#slDimBg'); if (el) { el.value = S.dimBg; paintRangeFill(el); }
+  }
+  if (v.cs !== undefined) {
+    S.clockSize = v.cs; applyClockSize();
+    const el = $('#slClockSize'); if (el) { el.value = S.clockSize; paintRangeFill(el); }
   }
   if (v.f !== undefined) S.durations.focus = v.f;
   if (v.s !== undefined) S.durations.short = v.s;

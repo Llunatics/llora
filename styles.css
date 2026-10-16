@@ -116,6 +116,13 @@ body {
   background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.38) 100%);
   pointer-events: none;
 }
+/* user dimmer over the video (Dim background slider) */
+#bgDim {
+  position: absolute; inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* ---------- Floating clock (NO box) ---------- */
 .clock-float {
@@ -374,6 +381,32 @@ body.hening .chrome-fade { opacity: 0; pointer-events: none; }
 .set-group { margin-bottom: 18px; }
 .set-group:last-child { margin-bottom: 2px; }
 .set-group h3 { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; font-weight: 600; }
+
+/* collapsible settings groups */
+.acc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%;
+  padding: 6px 2px;
+  margin-bottom: 2px;
+  background: none; border: 0; cursor: pointer;
+  font-family: var(--font);
+  color: var(--text-dim);
+  transition: color .15s ease;
+}
+.acc-head span {
+  font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600;
+}
+.acc-head:hover { color: var(--text); }
+.acc-chev { flex: none; opacity: 0.7; transition: transform .22s ease; }
+.acc-head[aria-expanded="true"] .acc-chev { transform: rotate(180deg); }
+.acc-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .28s ease;
+}
+.acc[data-open="true"] .acc-body { grid-template-rows: 1fr; }
+.acc-inner { overflow: hidden; min-height: 0; }
+.acc[data-open="true"] .acc-head { margin-bottom: 8px; }
 
 /* glass dropdown button (shared look with the old native select) */
 .glass-select {

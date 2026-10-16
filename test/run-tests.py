@@ -94,6 +94,17 @@ with sync_playwright() as p:
     # --- settings panel: no double X, dropdowns, steppers, bg sound ---
     pg.click("#menuBtn")
     pg.wait_for_timeout(400)
+    # accordion groups start collapsed; expand them so controls are clickable
+    check("accordion groups collapsed by default",
+          pg.evaluate("[...document.querySelectorAll('.set-group.acc')].every(s => s.dataset.open !== 'true')"))
+    for acc in ["bg", "clock", "timer", "nature", "sound"]:
+        pg.evaluate(f"document.querySelector('.set-group.acc[data-acc=\"{acc}\"] .acc-head').click()")
+    pg.wait_for_timeout(400)
+    check("accordion expands on head click",
+          pg.evaluate("document.querySelector('.set-group.acc[data-acc=\"timer\"]').dataset.open") == "true"
+          and pg.evaluate("document.querySelector('.set-group.acc[data-acc=\"timer\"] .acc-head').getAttribute('aria-expanded')") == "true")
+    check("accordion state persists",
+          pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).acc.timer") == True)
     check("no inner close button (single X via hamburger)",
           pg.eval_on_selector_all("#settingsClose", "els => els.length") == 0)
     check("no native selects left (custom glass dropdowns)",
@@ -198,6 +209,72 @@ with sync_playwright() as p:
     check("scrim encoded in vibe link",
           pg.evaluate("collectVibe().sa") == 55 and pg.evaluate("collectVibe().sb") == 85)
 
+    # --- slider fill is min/max aware (spread max=160) ---
+    pg.evaluate("""() => {
+      const s = document.querySelector('#slScrimS');
+      s.value = 80; s.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+    check("spread slider fill at half = 50%",
+          pg.eval_on_selector("#slScrimS", "el => el.style.getPropertyValue('--fill')") == "50.0%",
+          pg.eval_on_selector("#slScrimS", "el => el.style.getPropertyValue('--fill')"))
+    pg.evaluate("""() => {
+      const s = document.querySelector('#slScrimS');
+      s.value = 85; s.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+
+    # --- dim background + clock size sliders ---
+    check("dim/clock-size sliders exist",
+          pg.eval_on_selector("#slDimBg", "el => el.type") == "range"
+          and pg.eval_on_selector("#slClockSize", "el => el.type") == "range")
+    pg.evaluate("""() => {
+      const d = document.querySelector('#slDimBg'), c = document.querySelector('#slClockSize');
+      d.value = 35; c.value = 120;
+      d.dispatchEvent(new Event('input', {bubbles:true}));
+      c.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+    pg.wait_for_timeout(150)
+    check("dim bg paints overlay",
+          pg.eval_on_selector("#bgDim", "el => el.style.opacity") == "0.35")
+    check("clock size scales card",
+          pg.eval_on_selector("#clockCard", "el => el.style.scale") == "1.2")
+    check("dim/size persist + in vibe",
+          pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).dimBg") == 35
+          and pg.evaluate("collectVibe().db") == 35 and pg.evaluate("collectVibe().cs") == 120)
+    pg.evaluate("""() => {
+      const d = document.querySelector('#slDimBg'), c = document.querySelector('#slClockSize');
+      d.value = 0; c.value = 100;
+      d.dispatchEvent(new Event('input', {bubbles:true}));
+      c.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+
+    # --- white noise slider ---
+    check("white noise slider exists",
+          pg.eval_on_selector("#slWhite", "el => el.type") == "range")
+    pg.evaluate("scSet('white', 0.5)")
+    pg.wait_for_timeout(600)
+    check("white noise node ramps",
+          pg.evaluate("SC.nodes.white && SC.nodes.white.gain.value") > 0.05,
+          pg.evaluate("SC.nodes.white && SC.nodes.white.gain.value"))
+    check("white in vibe", pg.evaluate("collectVibe().w") == 50)
+    pg.evaluate("scSet('white', 0)")
+
+    # --- dropdown: scrolling the option list itself must not close it ---
+    pg.click("#clockSelectWrap .dd-btn")
+    pg.wait_for_timeout(300)
+    pg.evaluate("""() => {
+      const l = document.querySelector(".dd-list[data-dd='#clockSelectWrap']");
+      l.scrollTop = 60;
+      l.dispatchEvent(new Event('scroll', {bubbles:true}));
+    }""")
+    pg.wait_for_timeout(200)
+    check("scrolling option list keeps dropdown open",
+          pg.is_visible(".dd-list[data-dd='#clockSelectWrap']"))
+    pg.click(".dd-list[data-dd='#clockSelectWrap'] li[data-value='air']")
+    pg.wait_for_timeout(200)
+    check("option still clickable after list scroll",
+          not pg.is_visible(".dd-list[data-dd='#clockSelectWrap']")
+          and pg.evaluate("S.clockStyle") == "air")
+
     # --- custom checkbox / slider / leaf-green accent ---
     check("accent is leaf green",
           pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#2ee57d")
@@ -208,7 +285,7 @@ with sync_playwright() as p:
     check("checked checkbox glows leaf green", "46, 229, 125" in chk_bg, chk_bg)
     pg.evaluate("document.querySelector('#slPink').value = 40; paintRangeFill(document.querySelector('#slPink'));")
     check("slider fill var paints",
-          pg.eval_on_selector("#slPink", "el => el.style.getPropertyValue('--fill')") == "40%")
+          pg.eval_on_selector("#slPink", "el => el.style.getPropertyValue('--fill')") == "40.0%")
     thumb_h = pg.eval_on_selector("#slPink", """el => {
       const cs = getComputedStyle(el);
       return cs.getPropertyValue('-webkit-appearance') || cs.appearance;

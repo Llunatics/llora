@@ -20,6 +20,7 @@
   <video id="bgA" class="bg-video" muted loop playsinline preload="auto"></video>
   <video id="bgB" class="bg-video" muted loop playsinline preload="auto"></video>
   <iframe id="bgYt" class="bg-yt" title="" tabindex="-1" aria-hidden="true"></iframe>
+  <div id="bgDim"></div>
   <div class="bg-vignette"></div>
   <canvas id="tintCanvas" width="16" height="16" hidden></canvas>
 </div>
@@ -75,8 +76,9 @@
     <h2>Settings</h2>
   </div>
 
-  <section class="set-group">
-    <h3>Background</h3>
+  <section class="set-group acc" data-acc="bg">
+    <button class="acc-head" aria-expanded="false"><span>Background</span><svg class="acc-chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="acc-body"><div class="acc-inner">
     <label class="field-label">Video preset</label>
     <div id="bgSelectWrap"></div>
     <label class="field-label" for="customBgUrl">Custom video URL (YouTube / .mp4 / .webm)</label>
@@ -84,16 +86,21 @@
       <input id="customBgUrl" type="url" placeholder="https://…/video.mp4 or a YouTube link" spellcheck="false">
       <button id="applyBgUrl" class="glass-btn small">OK</button>
     </div>
+    <label class="slider-row">Dim background<input id="slDimBg" type="range" min="0" max="70" value="0"></label>
     <label class="check"><input id="chkBgSound" type="checkbox"> Background video sound</label>
     <p class="hint">A YouTube link becomes a fullscreen background (no buttons). While a video loads, its photo preview is shown. If it fails to load, the gradient background is shown.</p>
+    </div></div>
   </section>
 
-  <section class="set-group">
-    <h3>Clock style</h3>
+  <section class="set-group acc" data-acc="clock">
+    <button class="acc-head" aria-expanded="false"><span>Clock style</span><svg class="acc-chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="acc-body"><div class="acc-inner">
     <div id="clockSelectWrap"></div>
+    <label class="slider-row">Clock size<input id="slClockSize" type="range" min="70" max="140" value="100"></label>
     <label class="slider-row">Backdrop darkness<input id="slScrimA" type="range" min="0" max="80" value="55"></label>
     <label class="slider-row">Backdrop spread<input id="slScrimS" type="range" min="0" max="160" value="85"></label>
     <button id="resetClockPos" class="glass-btn small wide">Reset clock position</button>
+    </div></div>
   </section>
 
   <section class="set-group">
@@ -102,8 +109,9 @@
     <p class="hint">Copy a link with your video, clock style, position, sounds &amp; durations — anyone opening it tries the same vibe.</p>
   </section>
 
-  <section class="set-group">
-    <h3>Timer duration (minutes)</h3>
+  <section class="set-group acc" data-acc="timer">
+    <button class="acc-head" aria-expanded="false"><span>Timer duration (minutes)</span><svg class="acc-chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="acc-body"><div class="acc-inner">
     <div class="stepper" data-key="focus" data-step="0.5" data-min="0.1" data-max="999">
       <span class="step-label">Focus</span>
       <button class="glass-btn small step-btn" data-dir="-1" aria-label="Decrease focus duration">−</button>
@@ -131,20 +139,26 @@
     <label class="check"><input id="chkAuto" type="checkbox" checked> Auto-continue to next session</label>
     <label class="check"><input id="chkBreathe" type="checkbox" checked> 15s breathing transition before breaks</label>
     <label class="check"><input id="chkHening" type="checkbox" checked> Zen mode (hide UI while focusing)</label>
+    </div></div>
   </section>
 
-  <section class="set-group">
-    <h3>Nature sounds · procedural</h3>
+  <section class="set-group acc" data-acc="nature">
+    <button class="acc-head" aria-expanded="false"><span>Nature sounds · procedural</span><svg class="acc-chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="acc-body"><div class="acc-inner">
     <p class="hint" style="margin:0 0 6px">Generated live in the browser — no files, works offline.</p>
     <label class="slider-row">Pink noise<input id="slPink" type="range" min="0" max="100" value="0"></label>
     <label class="slider-row">Brown noise<input id="slBrown" type="range" min="0" max="100" value="0"></label>
+    <label class="slider-row">White noise<input id="slWhite" type="range" min="0" max="100" value="0"></label>
     <label class="slider-row">Gamma 40Hz<input id="slGamma" type="range" min="0" max="100" value="0"></label>
+    </div></div>
   </section>
 
-  <section class="set-group">
-    <h3>Sound &amp; notifications</h3>
+  <section class="set-group acc" data-acc="sound">
+    <button class="acc-head" aria-expanded="false"><span>Sound &amp; notifications</span><svg class="acc-chev" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <div class="acc-body"><div class="acc-inner">
     <label class="check"><input id="chkSound" type="checkbox" checked> Sound when a session ends</label>
     <label class="check"><input id="chkNotif" type="checkbox"> Browser notifications</label>
+    </div></div>
   </section>
 
   <section class="set-group">

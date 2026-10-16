@@ -32,14 +32,14 @@ Llora is a focus timer that feels like a quiet place, not a productivity tool. A
 
 **Interface**
 - Liquid glass with adaptive tint sampled live from the video frame.
-- Boxless floating clock — drag it anywhere (position survives resize), twelve lazy-loaded typefaces, adjustable backdrop darkness + spread so thin digits stay readable over any video. Press `C` to cycle styles.
+- Boxless floating clock — drag it anywhere (position survives resize), twelve lazy-loaded typefaces, adjustable size, backdrop darkness + spread, and background dimmer so thin digits stay readable over any video. Press `C` to cycle styles.
 - **Zen mode** — after 6 s without pointer movement, every chrome element fades away; only the clock and the video remain. Press `H` to toggle.
 - **One Thing** — a single daily intention line under the clock; it dissolves when the session ends.
 - Keyboard-first: `Space` play/pause, `M` mute, `N` next track, `1–5` backgrounds, `C` clock style, `H` zen, `Esc` close panels.
 
 **Sound** (all synthesized in WebAudio — zero audio files, works offline)
 - **Singing-bowl ritual** — a tactile thrum when focus begins, a Tibetan bowl strike at 00:00.
-- **Soundscape mixer** — pink + brown noise through a slow-breathing lowpass filter, plus a 40 Hz binaural gamma beat. Three sliders in settings.
+- **Soundscape mixer** — pink + brown + white noise through a slow-breathing lowpass filter, plus a 40 Hz binaural gamma beat. Four sliders in settings.
 
 **Playlist**
 - Titles-only panel — no YouTube chrome, ever. Hidden native audio and 1×1 YouTube players, auto-advance, graceful handling of embed-disabled videos.
