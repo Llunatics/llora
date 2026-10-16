@@ -184,11 +184,23 @@
     <h2>Playlist</h2>
     <button id="plClose" class="glass-btn small" aria-label="Close playlist">✕</button>
   </div>
-  <div class="pl-controls">
+  <div class="np">
+    <div class="np-cover">
+      <img id="npCover" alt="" hidden>
+      <span id="npCoverPh" aria-hidden="true">♪</span>
+    </div>
+    <div class="np-meta">
+      <div class="np-title" id="npTitle">Nothing playing</div>
+      <div class="np-artist" id="npArtist"></div>
+      <div class="np-time"><span id="npCur">0:00</span> / <span id="npDur">0:00</span></div>
+    </div>
+    <button id="npBigPlay" class="glass-btn np-bigbtn" aria-label="Play or pause">▶</button>
+  </div>
+  <div class="np-bar">
     <button id="plPrev" class="glass-btn small" aria-label="Previous">⏮</button>
     <button id="plPlayPause" class="glass-btn small" aria-label="Play or pause">▶</button>
     <button id="plNext" class="glass-btn small" aria-label="Next">⏭</button>
-    <span id="plNow" class="pl-now">—</span>
+    <input type="range" id="npSeek" min="0" max="1000" value="0" aria-label="Seek">
   </div>
   <ul id="plList" class="pl-list"></ul>
   <div class="pl-add">
@@ -196,7 +208,6 @@
       <input id="plUrl" type="url" placeholder="YouTube link / playlist / .mp3 / .mp4" spellcheck="false">
       <button id="plAdd" class="glass-btn small">＋</button>
     </div>
-    <p class="hint">Paste a track link, a YouTube or YouTube Music playlist link (imported whole), or a direct file. Titles are fetched automatically; the player stays hidden.</p>
   </div>
 </section>
 

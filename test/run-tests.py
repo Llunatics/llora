@@ -405,6 +405,14 @@ with sync_playwright() as p:
           pg.eval_on_selector("#plFab .fab-x", "el => getComputedStyle(el).opacity") == "0")
     pg.click("#plFab")  # reopen for the tests below
     pg.wait_for_timeout(300)
+    # --- now-playing card ---
+    check("paste hint removed (clean panel)",
+          pg.eval_on_selector_all(".pl-add .hint", "els => els.length") == 0)
+    check("now-playing card structure",
+          pg.eval_on_selector("#npCover", "el => el.tagName") == "IMG"
+          and pg.eval_on_selector("#npTitle", "el => el.textContent") == "Nothing playing"
+          and pg.eval_on_selector("#npBigPlay", "el => el.textContent") == "▶"
+          and pg.eval_on_selector("#npSeek", "el => el.type") == "range")
     pg.fill("#plUrl", f"http://127.0.0.1:{PORT}/test-audio.mp3")
     pg.click("#plAdd")
     pg.wait_for_timeout(1500)
@@ -415,9 +423,54 @@ with sync_playwright() as p:
     pg.click("#plList li")
     pg.wait_for_timeout(1500)
     check("native audio plays", pg.evaluate("!document.querySelector('#plAudio').paused"))
+    check("now-playing shows track title",
+          "test audio" in pg.eval_on_selector("#npTitle", "el => el.textContent"))
+    _ct = pg.evaluate("document.querySelector('#plAudio').currentTime")
+    _np = pg.eval_on_selector("#npCur", "el => el.textContent")
+    _fmt = lambda s: f"{int(s // 60)}:{int(s % 60):02d}"
+    check("now-playing time advances while timer idle",
+          _ct > 0.5 and _np in (_fmt(_ct), _fmt(max(0, _ct - 1)), _fmt(_ct + 1))
+          and pg.evaluate("T.running") == False,
+          f"audio={_ct:.2f} shown={_np}")
+    check("big play button syncs state",
+          pg.eval_on_selector("#npBigPlay", "el => el.textContent") == "⏸")
+    pg.click("#npBigPlay")
+    pg.wait_for_timeout(300)
+    check("big play button pauses",
+          pg.evaluate("document.querySelector('#plAudio').paused")
+          and pg.eval_on_selector("#plPlayPause", "el => el.textContent") == "▶")
     pg.click("#plPlayPause")
     pg.wait_for_timeout(300)
-    check("pause works", pg.evaluate("document.querySelector('#plAudio').paused"))
+    check("small play button resumes",
+          not pg.evaluate("document.querySelector('#plAudio').paused")
+          and pg.eval_on_selector("#npBigPlay", "el => el.textContent") == "⏸")
+    # seek: in-memory 6s WAV via blob URL (seekable; the test HTTP server
+    # has no Range support, so fixture files can't seek in this env)
+    pg.evaluate("""() => {
+      const sr = 44100, dur = 6, n = sr * dur;
+      const dv = new DataView(new ArrayBuffer(44 + n * 2));
+      const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+      ws(0, 'RIFF'); dv.setUint32(4, 36 + n * 2, true); ws(8, 'WAVE'); ws(12, 'fmt ');
+      dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+      dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+      ws(36, 'data'); dv.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) dv.setInt16(44 + i * 2, Math.sin(2 * Math.PI * 440 * i / sr) * 10000, true);
+      const url = URL.createObjectURL(new Blob([dv.buffer], {type: 'audio/wav'}));
+      S.playlist.push({id: 'seekwav', title: 'Seek WAV', artist: '', url, type: 'audio', ytId: null, listId: null});
+      save(); renderPlaylist(); playTrack(S.playlist.length - 1);
+    }""")
+    pg.wait_for_timeout(1200)
+    check("wav track plays", pg.evaluate("!document.querySelector('#plAudio').paused"))
+    pg.evaluate("""() => {
+      const s = document.querySelector('#npSeek');
+      s.value = 500; s.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+    pg.wait_for_timeout(400)
+    check("seek bar seeks audio",
+          abs(pg.evaluate("document.querySelector('#plAudio').currentTime") - 3.0) < 0.7,
+          pg.evaluate("document.querySelector('#plAudio').currentTime"))
+    pg.evaluate("removeTrack('seekwav')")
+    pg.wait_for_timeout(200)
     pg.eval_on_selector("#plList li .rm", "el => el.click()")
     pg.wait_for_timeout(300)
     check("remove track", "empty" in pg.eval_on_selector("#plList", "el => el.textContent"))
@@ -484,10 +537,10 @@ with sync_playwright() as p:
     pg.evaluate("""() => {
       window.__realImport = ytImportIds;
       window.__realPlTitle = fetchYtPlaylistTitle;
-      window.__realTitle = fetchYtTitle;
+      window.__realTitle = fetchYtMeta;
       ytImportIds = async () => ['vidAAA11111', 'vidBBB22222', 'vidCCC33333'];
       fetchYtPlaylistTitle = async () => 'Stubbed Mix';
-      fetchYtTitle = async (id) => 'Song ' + id.slice(3, 6);
+      fetchYtMeta = async (id) => ({title: 'Song ' + id.slice(3, 6), artist: 'Singer ' + id.slice(3, 6)});
     }""")
     n0 = pg.evaluate("S.playlist.length")
     pg.fill("#plUrl", "https://www.youtube.com/playlist?list=PLtest999")
@@ -500,12 +553,15 @@ with sync_playwright() as p:
     check("imported titles fill in",
           [t["title"] for t in added] == ["Song AAA", "Song BBB", "Song CCC"],
           str([t["title"] for t in added]))
+    check("imported artists fill in",
+          [t["artist"] for t in added] == ["Singer AAA", "Singer BBB", "Singer CCC"],
+          str([t["artist"] for t in added]))
     check("imported tracks listed",
           pg.eval_on_selector_all("#plList li", "els => els.length") >= 3)
     pg.evaluate("""() => {
       ytImportIds = window.__realImport;
       fetchYtPlaylistTitle = window.__realPlTitle;
-      fetchYtTitle = window.__realTitle;
+      fetchYtMeta = window.__realTitle;
     }""")
 
     # --- Bagikan Vibe: hash round-trip, session-only, keep persists ---

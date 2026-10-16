@@ -43,8 +43,8 @@ Llora is a focus timer that feels like a quiet place, not a productivity tool. A
 - **Soundscape mixer** — pink + brown + white noise through a slow-breathing lowpass filter, plus a 40 Hz binaural gamma beat. Four sliders in settings.
 
 **Playlist**
-- Titles-only panel — no YouTube chrome, ever. Hidden native audio and 1×1 YouTube players, auto-advance, graceful handling of embed-disabled videos.
-- Paste a YouTube / YouTube Music playlist link to import every video as its own track — titles fill in automatically; Media Session API gives lock-screen controls.
+- Now-playing card — cover art, title, artist, elapsed/total time, big play button, and a seek bar; prev/play/next below. No YouTube chrome, ever. Hidden native audio and 1×1 YouTube players, auto-advance, graceful handling of embed-disabled videos.
+- Paste a YouTube / YouTube Music playlist link to import every video as its own track — titles and artists fill in automatically; Media Session API gives lock-screen controls.
 
 **Sharing**
 - **Share Vibe** — one click copies a link encoding your exact setup (background, clock style + position, soundscape, durations, current track). Recipients preview it in a session-only sandbox; "Keep it as mine" adopts it.

@@ -393,6 +393,7 @@ function render() {
     : (playing || T.remaining < durSec(T.mode) || T.mode === 'overtime')
     ? `${titleTime} · Llora`
     : 'Llora — Focus Timer';
+  updateNp();
 }
 
 /* ---------------- sound + notification ---------------- */
@@ -1175,13 +1176,13 @@ function parseMedia(url) {
   return { type: 'unknown' };
 }
 
-async function fetchYtTitle(ytId) {
+async function fetchYtMeta(ytId) {
   try {
     const r = await fetch(`https://noembed.com/embed?url=${encodeURIComponent('https://www.youtube.com/watch?v=' + ytId)}`);
     const j = await r.json();
-    if (j && j.title) return j.title;
+    if (j && j.title) return { title: j.title, artist: j.author_name || '' };
   } catch { /* offline or blocked */ }
-  return 'YouTube video';
+  return { title: 'YouTube video', artist: '' };
 }
 
 async function fetchYtPlaylistTitle(listId) {
@@ -1249,7 +1250,7 @@ async function importYtPlaylist(listId) {
   const base = S.playlist.length;
   const fresh = ids.map((vid, i) => ({
     id: Date.now().toString(36) + '-' + i,
-    title: `Track ${base + i + 1}`,
+    title: `Track ${base + i + 1}`, artist: '',
     url: `https://www.youtube.com/watch?v=${vid}`,
     type: 'youtube', ytId: vid, listId: null,
   }));
@@ -1259,8 +1260,8 @@ async function importYtPlaylist(listId) {
   // fill real titles in the background, a few at a time
   for (let i = 0; i < fresh.length; i += 6) {
     await Promise.all(fresh.slice(i, i + 6).map(async (t) => {
-      const name = await fetchYtTitle(t.ytId);
-      if (name && name !== 'YouTube video') t.title = name;
+      const meta = await fetchYtMeta(t.ytId);
+      if (meta.title && meta.title !== 'YouTube video') { t.title = meta.title; t.artist = meta.artist; }
     }));
     save(); renderPlaylist();
   }
@@ -1276,10 +1277,11 @@ async function addTrack(url) {
   }
   // a pasted playlist expands into its individual videos
   if (media.type === 'ytplaylist') return importYtPlaylist(media.id);
-  let title = `Track ${S.playlist.length + 1}`;
+  let title = `Track ${S.playlist.length + 1}`, artist = '';
   if (media.type === 'youtube') {
     toast('Fetching title…');
-    title = await fetchYtTitle(media.id);
+    const meta = await fetchYtMeta(media.id);
+    title = meta.title; artist = meta.artist;
   } else {
     try {
       const u = new URL(url);
@@ -1288,7 +1290,7 @@ async function addTrack(url) {
     } catch { /* keep default */ }
   }
   S.playlist.push({
-    id: Date.now().toString(36), title, url, type: media.type,
+    id: Date.now().toString(36), title, artist, url, type: media.type,
     ytId: media.type === 'youtube' ? media.id : null,
     listId: media.type === 'ytplaylist' ? media.id : null,
   });
@@ -1348,8 +1350,8 @@ function createYtPlayer() {
         else { ytListMode = false; e.target.loadVideoById(t.ytId); }
       },
       onStateChange: (e) => {
-        if (e.data === YT.PlayerState.PLAYING) { ytPlaying = true; $('#plPlayPause').textContent = '⏸'; }
-        else if (e.data === YT.PlayerState.PAUSED) { ytPlaying = false; $('#plPlayPause').textContent = '▶'; }
+        if (e.data === YT.PlayerState.PLAYING) { ytPlaying = true; paintNpPlaying(true); }
+        else if (e.data === YT.PlayerState.PAUSED) { ytPlaying = false; paintNpPlaying(false); }
         else if (e.data === YT.PlayerState.ENDED) { stepTrack(1); }
       },
       onError: () => {
@@ -1366,9 +1368,75 @@ function stopPlayback() {
   a.pause(); a.removeAttribute('src'); a.load();
   if (ytPlayer && ytPlaying) { try { ytPlayer.pauseVideo(); } catch {} }
   ytPlaying = false;
-  $('#plPlayPause').textContent = '▶';
-  $('#plNow').textContent = '—';
+  paintNpPlaying(false);
+  updateNp();
   if ('mediaSession' in navigator) { try { navigator.mediaSession.metadata = null; } catch {} }
+}
+
+/* now-playing card: cover + title/artist/time + seek, kept in sync by render() */
+const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+function paintNpPlaying(playing) {
+  const g = playing ? '⏸' : '▶';
+  const a = $('#plPlayPause'), b = $('#npBigPlay');
+  if (a) a.textContent = g;
+  if (b) b.textContent = g;
+}
+function npMedia() {
+  const t = S.playlist[S.currentTrack];
+  if (!t) return null;
+  if (t.type === 'youtube' || t.type === 'ytplaylist') return ytPlayer ? { yt: true } : null;
+  const el = t.type === 'audio' ? $('#plAudio') : $('#plVideo');
+  return (el && el.src) ? { el } : null;
+}
+function npTimes() {
+  const m = npMedia();
+  if (!m) return { cur: 0, dur: 0 };
+  try {
+    if (m.yt) return { cur: ytPlayer.getCurrentTime() || 0, dur: ytPlayer.getDuration() || 0 };
+    return { cur: m.el.currentTime || 0, dur: m.el.duration || 0 };
+  } catch { return { cur: 0, dur: 0 }; }
+}
+let npSeeking = false;
+function npSeekTo(frac) {
+  const m = npMedia();
+  if (!m) return;
+  try {
+    if (m.yt) ytPlayer.seekTo(frac * (ytPlayer.getDuration() || 0), true);
+    else if (isFinite(m.el.duration) && m.el.duration > 0) m.el.currentTime = frac * m.el.duration;
+  } catch {}
+}
+function setNpTimes(cur, dur) {
+  const c = $('#npCur'), d = $('#npDur'), seek = $('#npSeek');
+  if (c) c.textContent = fmtT(cur);
+  if (d) d.textContent = fmtT(dur);
+  if (seek && !npSeeking) {
+    seek.value = dur > 0 ? Math.round(cur / dur * 1000) : 0;
+    paintRangeFill(seek);
+  }
+}
+function updateNp() {
+  const t = S.playlist[S.currentTrack];
+  const titleEl = $('#npTitle'), artistEl = $('#npArtist');
+  const cover = $('#npCover'), coverPh = $('#npCoverPh');
+  if (!t) {
+    if (titleEl) titleEl.textContent = 'Nothing playing';
+    if (artistEl) artistEl.textContent = '';
+    if (cover) cover.hidden = true;
+    if (coverPh) coverPh.hidden = false;
+    setNpTimes(0, 0);
+    return;
+  }
+  if (titleEl) titleEl.textContent = t.title || 'Untitled';
+  if (artistEl) artistEl.textContent = t.artist || '';
+  const cv = t.type === 'youtube' && t.ytId ? `https://i.ytimg.com/vi/${t.ytId}/mqdefault.jpg` : null;
+  if (cover) {
+    if (cv && cover.getAttribute('src') !== cv) cover.src = cv;
+    if (!cv) cover.removeAttribute('src');
+    cover.hidden = !cv;
+  }
+  if (coverPh) coverPh.hidden = !!cv;
+  const { cur, dur } = npTimes();
+  setNpTimes(cur, dur);
 }
 
 function playTrack(i) {
@@ -1388,9 +1456,9 @@ function playTrack(i) {
     v.src = t.url;
     v.play().then(() => setMediaSession(t, v)).catch(() => toast('Video failed to play.'));
   }
-  $('#plNow').textContent = t.title;
-  $('#plPlayPause').textContent = '⏸';
+  paintNpPlaying(true);
   renderPlaylist();
+  updateNp();
 }
 
 function setMediaSession(t, el) {
@@ -1413,8 +1481,8 @@ function togglePlayPause() {
     return;
   }
   const el = t.type === 'audio' ? $('#plAudio') : $('#plVideo');
-  if (el.paused) { el.play().catch(() => {}); $('#plPlayPause').textContent = '⏸'; }
-  else { el.pause(); $('#plPlayPause').textContent = '▶'; }
+  if (el.paused) { el.play().catch(() => {}); paintNpPlaying(true); }
+  else { el.pause(); paintNpPlaying(false); }
 }
 
 function stepTrack(dir) {
@@ -1448,8 +1516,7 @@ function renderPlaylist() {
     li.addEventListener('click', () => playTrack(i));
     ul.appendChild(li);
   });
-  const hasTrack = S.currentTrack >= 0 && S.playlist[S.currentTrack];
-  $('#plNow').textContent = hasTrack ? S.playlist[S.currentTrack].title : '—';
+  updateNp();
 }
 
 function initPlaylist() {
@@ -1474,6 +1541,21 @@ function initPlaylist() {
   };
   $('#plFab').addEventListener('click', () => togglePl());
   $('#plClose').addEventListener('click', () => togglePl(false));
+  const bigPlay = $('#npBigPlay');
+  if (bigPlay) bigPlay.addEventListener('click', () => togglePlayPause());
+  const seek = $('#npSeek');
+  if (seek) {
+    seek.addEventListener('pointerdown', () => { npSeeking = true; });
+    window.addEventListener('pointerup', () => { npSeeking = false; });
+    seek.addEventListener('input', () => npSeekTo(seek.value / 1000));
+    seek.addEventListener('change', () => { npSeeking = false; updateNp(); });
+  }
+  const cover = $('#npCover');
+  if (cover) cover.addEventListener('error', () => {
+    cover.hidden = true;
+    const ph = $('#npCoverPh');
+    if (ph) ph.hidden = false;
+  });
   renderPlaylist();
 }
 
@@ -1782,9 +1864,15 @@ function init() {
 
   T.remaining = durSec(T.mode);
   render();
-  // wall-clock heartbeat: the 250ms tick only runs while the timer runs,
-  // so clock mode needs its own pulse to keep seconds/date fresh
-  setInterval(() => { if (S.clockMode) render(); }, 500);
+  // heartbeat: the 250ms tick only runs while the timer runs, so clock mode
+  // needs its own pulse for seconds/date — and the now-playing card needs
+  // one to track media time while the timer is idle
+  setInterval(() => {
+    if (S.clockMode) { render(); return; }
+    try {
+      if (ytPlaying || !$('#plAudio').paused || !$('#plVideo').paused) updateNp();
+    } catch {}
+  }, 500);
 }
 
 document.addEventListener('DOMContentLoaded', init);
