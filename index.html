@@ -33,6 +33,7 @@
     <section class="clock-face" aria-label="Digital clock">
       <div class="mode-label" data-mode-label>Focus</div>
       <div class="time-display" data-time>25:00</div>
+      <div class="date-line hidden" data-date></div>
       <div class="session-dots" data-dots></div>
     </section>
 
@@ -69,6 +70,12 @@
 <button id="menuBtn" class="glass icon-btn no-drag chrome-fade" aria-label="Open settings" aria-expanded="false">
   <span></span><span></span><span></span>
 </button>
+
+<!-- ===== Timer / Clock mode toggle (top-center) ===== -->
+<div class="mode-toggle glass no-drag chrome-fade" role="tablist" aria-label="Display mode">
+  <button class="mt-opt" data-mt="timer" role="tab" aria-selected="true">Timer</button>
+  <button class="mt-opt" data-mt="clock" role="tab" aria-selected="false">Clock</button>
+</div>
 
 <!-- ===== Settings panel ===== -->
 <aside id="settingsPanel" class="glass panel hidden no-drag" aria-label="Settings">

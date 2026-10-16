@@ -70,6 +70,36 @@ body {
 .icon { width: 18px; height: 18px; fill: currentColor; }
 .hidden { display: none !important; }
 
+/* ---------- Timer / Clock mode toggle (top-center) ---------- */
+.mode-toggle {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 30; display: flex; padding: 3px; border-radius: 9999px;
+}
+.mt-opt {
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.08em; color: var(--text-dim);
+  padding: 6px 14px; border-radius: 9999px;
+  transition: color .15s ease, background .15s ease;
+}
+.mt-opt:hover { color: var(--text); }
+.mt-opt[aria-selected="true"] {
+  background: rgba(46, 229, 125, 0.18);
+  color: var(--text);
+}
+/* clock mode: hide timer chrome, show the date line */
+#clockCard.clock-mode .mode-label,
+#clockCard.clock-mode .session-dots,
+#clockCard.clock-mode .clock-controls,
+#clockCard.clock-mode #oneThingWrap,
+#clockCard.clock-mode #overtimeBtn { display: none !important; }
+.date-line {
+  font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--text-dim); margin-top: 12px; font-weight: 500;
+}
+#clockCard.clock-mode .colon { animation: colonblink 1s steps(1) infinite; }
+@keyframes colonblink { 50% { opacity: 0.25; } }
+
 /* ---------- Background (double-buffered) ---------- */
 .bg-layer { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: #0b0e14; }
 .bg-gradient {

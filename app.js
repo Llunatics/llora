@@ -55,6 +55,7 @@ const DEFAULT_STATE = {
   notif: false,
   clockStyle: 'air',
   clockPos: null,          // {fx, fy} viewport fractions of clock center
+  clockMode: false,        // true = wall-clock display instead of the timer
   bgId: 'hujan-kaca',
   bgCustom: '',
   bgSound: false,         // background video sound on/off
@@ -325,13 +326,39 @@ const mmssPlus = (sec) => {
   return `<span class="mm">+${m}</span><span class="colon">:</span><span class="ss">${s}</span>`;
 };
 
+/* wall-clock display mode: the card becomes a desk clock (timer keeps
+   running underneath if it was started) */
+function applyClockMode() {
+  const on = !!S.clockMode;
+  const card = $('#clockCard');
+  if (card) card.classList.toggle('clock-mode', on);
+  $$('[data-date]').forEach(el => el.classList.toggle('hidden', !on));
+  document.querySelectorAll('.mt-opt').forEach(b =>
+    b.setAttribute('aria-selected', String((b.dataset.mt === 'clock') === on)));
+}
+function setClockMode(on) {
+  S.clockMode = !!on;
+  save();
+  applyClockMode();
+  render();
+}
+
 function render() {
   const p = progress();
   const label = MODE_LABEL[T.mode];
   const cycleNum = (T.completedFocus % S.cycle) + 1;
-  const timeHTML = T.mode === 'overtime' ? mmssPlus(T.overtimeSec || 0) : mmss(T.remaining);
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mi = String(now.getMinutes()).padStart(2, '0');
+  const wallHTML = `<span class="mm">${hh}</span><span class="colon">:</span><span class="ss">${mi}</span>`;
+  const timeHTML = S.clockMode ? wallHTML
+    : T.mode === 'overtime' ? mmssPlus(T.overtimeSec || 0) : mmss(T.remaining);
 
   $$('[data-time]').forEach(el => { el.innerHTML = timeHTML; });
+  if (S.clockMode) {
+    const dstr = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    $$('[data-date]').forEach(el => { el.textContent = dstr; });
+  }
   $$('[data-mode-label]').forEach(el => { el.textContent = label; });
   $$('[data-cycle]').forEach(el => { el.textContent = `Session ${cycleNum}/${S.cycle}`; });
   $$('[data-next]').forEach(el => {
@@ -355,10 +382,11 @@ function render() {
   if (iconPause) iconPause.classList.toggle('hidden', !playing);
   $('#clockCard').classList.toggle('running', playing);
 
-  const titleTime = T.mode === 'overtime'
-    ? `+${mmssPlain(T.overtimeSec || 0)}`
+  const titleTime = S.clockMode ? `${hh}:${mi}`
+    : T.mode === 'overtime' ? `+${mmssPlain(T.overtimeSec || 0)}`
     : mmssPlain(T.remaining);
-  document.title = (playing || T.remaining < durSec(T.mode) || T.mode === 'overtime')
+  document.title = S.clockMode ? `${titleTime} · Llora`
+    : (playing || T.remaining < durSec(T.mode) || T.mode === 'overtime')
     ? `${titleTime} · Llora`
     : 'Llora — Focus Timer';
 }
@@ -948,6 +976,7 @@ function initShortcuts() {
     else if (k === 'n') stepTrack(1);
     else if (k === 'c') cycleClockStyle(1);
     else if (k === 'h') toggleHeningForce();
+    else if (k === 't') setClockMode(!S.clockMode);
     else if (k >= '1' && k <= String(BG_PRESETS.length)) {
       const p = BG_PRESETS[Number(k) - 1];
       S.bgId = p.id; S.bgCustom = ''; $('#customBgUrl').value = ''; save();
@@ -1725,6 +1754,9 @@ function init() {
   $('#overtimeBtn').addEventListener('click', endOvertime);
   $('#vibeKeep').addEventListener('click', keepVibe);
   $('#vibeDrop').addEventListener('click', dropVibe);
+  document.querySelectorAll('.mt-opt').forEach(b =>
+    b.addEventListener('click', () => setClockMode(b.dataset.mt === 'clock')));
+  applyClockMode();
 
   initDrag();
   initSettings();

@@ -410,6 +410,35 @@ with sync_playwright() as p:
     pg.wait_for_timeout(300)
     check("remove track", "empty" in pg.eval_on_selector("#plList", "el => el.textContent"))
 
+    # --- clock mode toggle (wall-clock display) ---
+    check("mode toggle pill exists",
+          pg.eval_on_selector_all(".mt-opt", "els => els.length") == 2)
+    check("starts in timer mode",
+          pg.evaluate("S.clockMode") == False
+          and not pg.eval_on_selector("#clockCard", "el => el.classList.contains('clock-mode')"))
+    pg.click('.mt-opt[data-mt="clock"]')
+    pg.wait_for_timeout(400)
+    import datetime as _dt
+    _now = _dt.datetime.now().strftime("%H:%M")
+    _shown = pg.eval_on_selector("[data-time]", "el => el.textContent")
+    check("clock mode shows wall time", _shown == _now, _shown)
+    check("clock mode hides timer chrome",
+          pg.eval_on_selector(".clock-controls", "el => getComputedStyle(el).display") == "none"
+          and pg.eval_on_selector("[data-date]", "el => getComputedStyle(el).display") != "none")
+    check("clock mode date line",
+          len(pg.eval_on_selector("[data-date]", "el => el.textContent")) > 8,
+          pg.eval_on_selector("[data-date]", "el => el.textContent"))
+    check("clock mode persists",
+          pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).clockMode") == True)
+    check("clock mode tab title", pg.evaluate("document.title").startswith(_now),
+          pg.evaluate("document.title"))
+    pg.evaluate("S.durations.focus = 25; resetSession();")  # undo the 0.1-min stepper test
+    pg.keyboard.press("t")
+    pg.wait_for_timeout(300)
+    check("T key toggles back to timer",
+          pg.evaluate("S.clockMode") == False
+          and pg.eval_on_selector("[data-time]", "el => el.textContent") == "25:00")
+
     # --- playlist import: YouTube + YouTube Music playlist links ---
     check("parseMedia: playlist?list=",
           pg.evaluate("parseMedia('https://www.youtube.com/playlist?list=PLabc123xyz').type") == "ytplaylist")
