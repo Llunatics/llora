@@ -629,6 +629,7 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
   transition: opacity .25s ease, transform .25s ease;
 }
 #playlistPanel.hidden { display: block !important; opacity: 0; transform: translateY(10px); pointer-events: none; }
+#playlistPanel .panel-head { justify-content: flex-end; }
 #playlistPanel .panel-head h2 { font-size: 13px; }
 
 /* now-playing card: cover left, meta fills the row */
