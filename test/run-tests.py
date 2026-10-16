@@ -172,12 +172,12 @@ with sync_playwright() as p:
 
     # --- custom checkbox / slider / leaf-green accent ---
     check("accent is leaf green",
-          pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#4ade80")
+          pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#2ee57d")
     check("checkbox is custom-styled",
           pg.eval_on_selector("#chkAuto", "el => getComputedStyle(el).borderRadius") == "6px"
           and pg.eval_on_selector("#chkAuto", "el => getComputedStyle(el).appearance") == "none")
     chk_bg = pg.eval_on_selector("#chkAuto", "el => getComputedStyle(el).backgroundColor")
-    check("checked checkbox glows leaf green", "74, 222, 128" in chk_bg, chk_bg)
+    check("checked checkbox glows leaf green", "46, 229, 125" in chk_bg, chk_bg)
     pg.evaluate("document.querySelector('#slPink').value = 40; paintRangeFill(document.querySelector('#slPink'));")
     check("slider fill var paints",
           pg.eval_on_selector("#slPink", "el => el.style.getPropertyValue('--fill')") == "40%")
