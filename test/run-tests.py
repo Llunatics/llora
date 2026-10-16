@@ -593,6 +593,31 @@ with sync_playwright() as p:
     bad = pg.evaluate("decodeVibe(btoa(JSON.stringify({vu: 'javascript:alert(1)', tu: 'data:text/html,x'})))")
     check("xss guard rejects non-https", bad.get("vu") is None and bad.get("tu") is None, str(bad))
 
+    # --- audit v6.3 regressions ---
+    # settings sliders must be full-width tracks, not 17px dots (CSS comma-selector bug)
+    pg2 = b.new_page(viewport={"width": 1280, "height": 900})
+    pg2.goto(f"http://127.0.0.1:{PORT}/index.html")
+    pg2.wait_for_timeout(1000)
+    w = pg2.evaluate("() => document.querySelector('#slDimBg').getBoundingClientRect().width")
+    check("settings slider is a full track", w > 100, f"width={w}")
+    # status line: fresh first focus -> next is short break, not long
+    nxt = pg2.evaluate("document.querySelector('[data-next]').textContent")
+    check("next label correct on fresh focus", nxt == "next: short break", nxt)
+    # seek fill repaints while dragging
+    pg2.evaluate("""() => {
+      S.playlist.push({id:'a1', title:'T', artist:'', url:'x', type:'audio', ytId:null, listId:null});
+      S.currentTrack = 0; save(); renderPlaylist(); updateNp();
+    }""")
+    pg2.evaluate("() => { const s = document.querySelector('#npSeek'); s.value = 500; s.dispatchEvent(new Event('input', {bubbles:true})); }")
+    fill = pg2.evaluate("document.querySelector('#npSeek').style.getPropertyValue('--fill')")
+    check("seek fill repaints on drag", fill == "50.0%", fill)
+    # playing track highlight uses the green accent, not blue
+    pg2.evaluate("() => document.querySelector('#plFab').click()")
+    pg2.wait_for_timeout(400)
+    bg = pg2.evaluate("() => getComputedStyle(document.querySelector('.pl-list li.playing')).backgroundColor")
+    check("playing track is green-tinted", "46, 229, 125" in bg, bg)
+    pg2.close()
+
     # --- screenshots (review only: never into assets/, the README hero is hand-picked) ---
     shot_dir = os.path.join(ROOT, "test", "shots")
     os.makedirs(shot_dir, exist_ok=True)

@@ -573,7 +573,8 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
     rgba(255, 255, 255, 0.16) var(--fill, 0%));
   outline: none; cursor: pointer;
 }
-.slider-row input[type="range"], #npSeek::-webkit-slider-thumb {
+.slider-row input[type="range"]::-webkit-slider-thumb,
+#npSeek::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 15px; height: 15px; border-radius: 50%;
   background: #f5f7fa;
@@ -582,16 +583,20 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
   cursor: pointer;
   transition: transform .15s ease;
 }
-.slider-row input[type="range"], #npSeek::-webkit-slider-thumb:hover { transform: scale(1.15); }
-.slider-row input[type="range"], #npSeek::-moz-range-thumb {
+.slider-row input[type="range"]::-webkit-slider-thumb:hover,
+#npSeek::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.slider-row input[type="range"]::-moz-range-thumb,
+#npSeek::-moz-range-thumb {
   width: 11px; height: 11px; border-radius: 50%;
   background: #f5f7fa; border: 2px solid var(--accent);
   box-shadow: 0 0 10px rgba(46, 229, 125, 0.45); cursor: pointer;
 }
-.slider-row input[type="range"], #npSeek::-moz-range-track {
+.slider-row input[type="range"]::-moz-range-track,
+#npSeek::-moz-range-track {
   height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.16);
 }
-.slider-row input[type="range"], #npSeek::-moz-range-progress {
+.slider-row input[type="range"]::-moz-range-progress,
+#npSeek::-moz-range-progress {
   height: 4px; border-radius: 99px; background: var(--accent);
 }
 
@@ -673,7 +678,7 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
   transition: background .15s ease;
 }
 .pl-list li:hover { background: rgba(255, 255, 255, 0.12); }
-.pl-list li.playing { border-color: rgba(125, 211, 252, 0.5); background: rgba(125, 211, 252, 0.12); }
+.pl-list li.playing { border-color: rgba(46, 229, 125, 0.5); background: rgba(46, 229, 125, 0.12); }
 .pl-list li .t { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-list li .rm { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 12px; padding: 1px 5px; border-radius: 6px; }
 .pl-list li .rm:hover { color: #ffb4b4; background: rgba(255, 255, 255, 0.1); }

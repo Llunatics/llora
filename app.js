@@ -366,8 +366,11 @@ function render() {
   $$('[data-mode-label]').forEach(el => { el.textContent = label; });
   $$('[data-cycle]').forEach(el => { el.textContent = `Session ${cycleNum}/${S.cycle}`; });
   $$('[data-next]').forEach(el => {
+    // during focus the NEXT break depends on the session about to finish
+    // (completedFocus+1); after focus ends completedFocus is already bumped
+    const nextBreak = ((T.completedFocus + (T.mode === 'focus' ? 1 : 0)) % S.cycle === 0) ? 'long' : 'short';
     el.textContent = 'next: ' + (T.mode === 'focus' || T.mode === 'breathe' || T.mode === 'overtime'
-      ? MODE_LABEL[modeAfterFocus()].toLowerCase() : 'focus');
+      ? MODE_LABEL[nextBreak].toLowerCase() : 'focus');
   });
   $$('[data-progress]').forEach(el => { el.style.width = `${(p * 100).toFixed(1)}%`; });
 
@@ -1549,7 +1552,7 @@ function initPlaylist() {
   if (seek) {
     seek.addEventListener('pointerdown', () => { npSeeking = true; });
     window.addEventListener('pointerup', () => { npSeeking = false; });
-    seek.addEventListener('input', () => npSeekTo(seek.value / 1000));
+    seek.addEventListener('input', () => { paintRangeFill(seek); npSeekTo(seek.value / 1000); });
     seek.addEventListener('change', () => { npSeeking = false; updateNp(); });
   }
   const cover = $('#npCover');
