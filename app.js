@@ -8,10 +8,10 @@ const STORE_KEY = 'pomodoro:v1';
 const RING_C = 2 * Math.PI * 88; // ≈ 552.92
 
 const BG_PRESETS = [
-  { id: 'lofi-study',  name: 'Lofi Study',  url: 'https://cdn.pixabay.com/video/2025/04/13/271841_large.mp4' },
-  { id: 'forest-rain', name: 'Forest Rain', url: 'https://cdn.pixabay.com/video/2023/06/23/168447-839220680_small.mp4' },
-  { id: 'rainy-room',  name: 'Rainy Room',  url: 'https://cdn.pixabay.com/video/2026/07/11/363351_large.mp4' },
-  { id: 'city-night',  name: 'City Night',   url: 'https://cdn.pixabay.com/video/2024/12/12/246433_large.mp4' },
+  { id: 'rain-window', name: 'Hujan di Kaca', url: 'https://videos.pexels.com/video-files/29886727/12830950_360_640_60fps.mp4' },
+  { id: 'forest-rain', name: 'Hujan Hutan',   url: 'https://videos.pexels.com/video-files/4536571/4536571-sd_360_640_30fps.mp4' },
+  { id: 'rain-walk',   name: 'Jalan Hujan',   url: 'https://videos.pexels.com/video-files/6302989/6302989-sd_640_360_24fps.mp4' },
+  { id: 'city-night',  name: 'Kota Malam',    url: 'https://videos.pexels.com/video-files/29799104/12803295_640_360_25fps.mp4' },
 ];
 
 const MODE_LABEL = { focus: 'Fokus', short: 'Istirahat', long: 'Istirahat Panjang' };
@@ -288,14 +288,28 @@ function setClockStyle(style) {
 }
 
 /* ---------------- background ---------------- */
+let bgFailTimer = null;
+let bgErrorToasted = false;
+
 function applyBackground() {
   const video = $('#bgVideo');
   const url = S.bgCustom || (BG_PRESETS.find(p => p.id === S.bgId) || BG_PRESETS[0]).url;
+  clearTimeout(bgFailTimer);
+  bgErrorToasted = false;
   video.classList.remove('ready');
+  video.removeAttribute('src');
+  video.load();
   video.src = url;
   video.load();
   const pr = video.play();
-  if (pr && pr.catch) pr.catch(() => {});
+  if (pr && pr.catch) pr.catch(() => { /* autoplay may need a gesture; retry on canplay */ });
+  // If the video never becomes playable, say so instead of leaving a dead screen.
+  bgFailTimer = setTimeout(() => {
+    if (!video.classList.contains('ready') && video.getAttribute('src') === url && !bgErrorToasted) {
+      bgErrorToasted = true;
+      toast('Background gagal dimuat, coba preset lain.');
+    }
+  }, 12000);
   renderPresetGrid();
 }
 
@@ -423,11 +437,14 @@ function initPlaylist() {
   $('#plNext').addEventListener('click', () => stepTrack(1));
   $('#plPrev').addEventListener('click', () => stepTrack(-1));
   $('#plVideo').addEventListener('ended', () => stepTrack(1)); // auto-advance
-  $('#plToggle').addEventListener('click', () => {
-    const p = $('#playlistPanel');
-    const collapsed = p.classList.toggle('collapsed');
-    $('#plToggle').setAttribute('aria-expanded', String(!collapsed));
-  });
+  const togglePl = (open) => {
+    const panel = $('#playlistPanel');
+    const willOpen = open !== undefined ? open : panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !willOpen);
+    $('#plFab').setAttribute('aria-expanded', String(willOpen));
+  };
+  $('#plFab').addEventListener('click', () => togglePl());
+  $('#plClose').addEventListener('click', () => togglePl(false));
   renderPlaylist();
 }
 
@@ -511,26 +528,36 @@ function init() {
   $$('#stylePicker button').forEach(b => b.classList.toggle('active', b.dataset.style === S.clockStyle));
 
   const bgv = $('#bgVideo');
-  bgv.addEventListener('canplay', () => bgv.classList.add('ready'));
-  bgv.addEventListener('error', () => bgv.classList.remove('ready'));
+  bgv.addEventListener('canplay', () => {
+    bgv.classList.add('ready');
+    clearTimeout(bgFailTimer);
+    // once playing, a late play() retry in case autoplay was deferred
+    const pr = bgv.play();
+    if (pr && pr.catch) pr.catch(() => {});
+  });
+  bgv.addEventListener('error', () => {
+    bgv.classList.remove('ready');
+    if (!bgErrorToasted) {
+      bgErrorToasted = true;
+      clearTimeout(bgFailTimer);
+      toast('Background gagal dimuat, coba preset lain.');
+    }
+  });
+  bgv.addEventListener('stalled', () => {
+    // keep the gradient visible; the 12s watchdog will notify if it never recovers
+  });
 
   $('#btnStartPause').addEventListener('click', () => (T.running ? pause() : start()));
   $('#btnReset').addEventListener('click', resetSession);
   $('#btnSkip').addEventListener('click', skipSession);
 
-  // drag hint fades after first visit
-  if (S.clockPos) $('#dragHint').style.display = 'none';
-  setTimeout(() => { const h = $('#dragHint'); if (h) h.style.display = 'none'; }, 9000);
-
   initDrag();
   initSettings();
   initPlaylist();
 
-  // small screens: start with the playlist collapsed so the timer stays reachable
-  if (window.innerWidth <= 640) {
-    $('#playlistPanel').classList.add('collapsed');
-    $('#plToggle').setAttribute('aria-expanded', 'false');
-  }
+  // one-time tiny hint; gone forever after first drag (dragend saves clockPos)
+  if (!S.clockPos) setTimeout(() => toast('Tahan & seret jam ke mana aja', 4000), 1200);
+
   applyBackground();
   T.remaining = durSec(T.mode);
   render();
