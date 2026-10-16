@@ -84,7 +84,7 @@ body {
 }
 .mt-opt:hover { color: var(--text); }
 .mt-opt[aria-selected="true"] {
-  background: rgba(46, 229, 125, 0.18);
+  background: rgba(0, 0, 0, 0.38);
   color: var(--text);
 }
 /* clock mode: hide timer chrome, show the date line */
