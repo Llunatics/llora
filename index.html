@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pomodoro — Focus Timer</title>
-<meta name="description" content="Pomodoro timer bergaya liquid glass: background video, jam floating yang bisa diseret, playlist tanpa chrome, mode hening.">
+<meta name="description" content="Liquid-glass Pomodoro timer: video backgrounds, a draggable floating clock, chromeless playlist, zen mode.">
 <meta name="theme-color" content="#0b0e14">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
@@ -16,6 +16,7 @@
 <!-- ===== Background layer: double-buffered videos + YouTube bg engine ===== -->
 <div class="bg-layer" aria-hidden="true">
   <div class="bg-gradient"></div>
+  <img id="bgPhoto" class="bg-photo" alt="" aria-hidden="true">
   <video id="bgA" class="bg-video" muted loop playsinline preload="auto"></video>
   <video id="bgB" class="bg-video" muted loop playsinline preload="auto"></video>
   <iframe id="bgYt" class="bg-yt" title="" tabindex="-1" aria-hidden="true"></iframe>
@@ -24,135 +25,154 @@
 </div>
 
 <!-- ===== Floating clock (no box, draggable) ===== -->
-<main id="clockCard" class="clock-float centered" aria-label="Timer Pomodoro">
+<main id="clockCard" class="clock-float centered" aria-label="Pomodoro timer">
   <div class="clock-inner" id="clockInner">
 
     <!-- Clock face: single generic face, style driven by data-clock-style (12 styles in CSS) -->
-    <section class="clock-face" aria-label="Jam digital">
-      <div class="mode-label" data-mode-label>Fokus</div>
+    <section class="clock-face" aria-label="Digital clock">
+      <div class="mode-label" data-mode-label>Focus</div>
       <div class="time-display" data-time>25:00</div>
       <div class="session-dots" data-dots></div>
     </section>
 
-    <!-- Satu Hal: one intention line -->
+    <!-- One Thing: one intention line -->
     <div class="one-thing no-drag" id="oneThingWrap">
-      <input id="oneThingInput" class="no-drag" maxlength="40" placeholder="Satu hal hari ini…" autocomplete="off" aria-label="Satu hal yang mau diselesaikan">
-      <button id="oneThingDone" class="one-done hidden" aria-label="Tandai selesai">✓</button>
+      <input id="oneThingInput" class="no-drag" maxlength="40" placeholder="One thing today…" autocomplete="off" aria-label="The one thing to get done">
+      <button id="oneThingDone" class="one-done hidden" aria-label="Mark as done">✓</button>
     </div>
   </div>
 
-  <!-- Mode Mengalir: overtime capsule (visible only in overtime mode) -->
-  <button id="overtimeBtn" class="glass-btn overtime-btn hidden" aria-label="Akhiri mode mengalir dan mulai istirahat">Lanjut Rehat →</button>
+  <!-- Flow mode: overtime capsule (visible only in overtime mode) -->
+  <button id="overtimeBtn" class="glass-btn overtime-btn hidden" aria-label="End flow mode and take a break">Take a break →</button>
 
   <!-- Controls: 3 small circular buttons -->
   <div class="clock-controls no-drag chrome-fade">
     <div class="btn-row">
-      <button id="btnStartPause" class="glass-btn ctl-btn" aria-label="Mulai atau jeda">
+      <button id="btnStartPause" class="glass-btn ctl-btn" aria-label="Start or pause">
         <svg viewBox="0 0 24 24" class="icon" data-icon-play><path d="M8 5v14l11-7z"/></svg>
         <svg viewBox="0 0 24 24" class="icon hidden" data-icon-pause><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
       </button>
-      <button id="btnReset" class="glass-btn ctl-btn" aria-label="Ulangi sesi" title="Ulangi">
+      <button id="btnReset" class="glass-btn ctl-btn" aria-label="Restart session" title="Restart">
         <svg viewBox="0 0 24 24" class="icon"><path d="M12 5V1L7 6l5 5V7c3.3 0 6 2.7 6 6s-2.7 6-6 6-6-2.7-6-6H4c0 4.4 3.6 8 8 8s8-3.6 8-8-3.6-8-8-8z"/></svg>
       </button>
-      <button id="btnSkip" class="glass-btn ctl-btn" aria-label="Lewati sesi" title="Lewati">
+      <button id="btnSkip" class="glass-btn ctl-btn" aria-label="Skip session" title="Skip">
         <svg viewBox="0 0 24 24" class="icon"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
       </button>
     </div>
     <div class="progress-track" aria-hidden="true"><div class="progress-fill" data-progress></div></div>
-    <div class="status-line"><span data-cycle>Sesi 1</span> · <span data-next>berikutnya: Istirahat</span></div>
+    <div class="status-line"><span data-cycle>Session 1/4</span> · <span data-next>next: short break</span></div>
   </div>
 </main>
 
 <!-- ===== Hamburger (top-right) ===== -->
-<button id="menuBtn" class="glass icon-btn no-drag chrome-fade" aria-label="Buka pengaturan" aria-expanded="false">
+<button id="menuBtn" class="glass icon-btn no-drag chrome-fade" aria-label="Open settings" aria-expanded="false">
   <span></span><span></span><span></span>
 </button>
 
 <!-- ===== Settings panel ===== -->
-<aside id="settingsPanel" class="glass panel hidden no-drag" aria-label="Pengaturan">
+<aside id="settingsPanel" class="glass panel hidden no-drag" aria-label="Settings">
   <div class="panel-head">
-    <h2>Pengaturan</h2>
-    <button id="settingsClose" class="glass-btn small" aria-label="Tutup pengaturan">✕</button>
+    <h2>Settings</h2>
   </div>
 
   <section class="set-group">
-    <h3>Background video</h3>
-    <div class="preset-grid" id="presetGrid"></div>
-    <label class="field-label" for="customBgUrl">URL video custom (YouTube / .mp4 / .webm)</label>
+    <h3>Background</h3>
+    <label class="field-label" for="bgSelect">Video preset</label>
+    <select id="bgSelect" class="glass-select" aria-label="Background video preset"></select>
+    <label class="field-label" for="customBgUrl">Custom video URL (YouTube / .mp4 / .webm)</label>
     <div class="row">
-      <input id="customBgUrl" type="url" placeholder="https://…/video.mp4 atau link YouTube" spellcheck="false">
+      <input id="customBgUrl" type="url" placeholder="https://…/video.mp4 or a YouTube link" spellcheck="false">
       <button id="applyBgUrl" class="glass-btn small">OK</button>
     </div>
-    <p class="hint">Link YouTube jadi background fullscreen (tanpa suara &amp; tombol). Kalau gagal dimuat, background gradien yang tampil.</p>
+    <label class="check"><input id="chkBgSound" type="checkbox"> Background video sound</label>
+    <p class="hint">A YouTube link becomes a fullscreen background (no buttons). While a video loads, its photo preview is shown. If it fails to load, the gradient background is shown.</p>
   </section>
 
   <section class="set-group">
-    <h3>Model jam</h3>
-    <div class="style-picker" id="stylePicker"></div>
-    <button id="resetClockPos" class="glass-btn small wide">Kembalikan posisi jam ke tengah</button>
+    <h3>Clock style</h3>
+    <select id="clockSelect" class="glass-select" aria-label="Clock style"></select>
+    <button id="resetClockPos" class="glass-btn small wide">Reset clock position</button>
   </section>
 
   <section class="set-group">
-    <h3>Bagikan</h3>
-    <button id="vibeBtn" class="glass-btn small wide" title="Salin Vibe">✦ Salin Vibe</button>
-    <p class="hint">Salin link berisi video, model jam, posisi, suara &amp; durasi — yang buka linknya langsung coba vibe yang sama.</p>
+    <h3>Share</h3>
+    <button id="vibeBtn" class="glass-btn small wide" title="Copy Vibe">✦ Copy Vibe</button>
+    <p class="hint">Copy a link with your video, clock style, position, sounds &amp; durations — anyone opening it tries the same vibe.</p>
   </section>
 
   <section class="set-group">
-    <h3>Durasi timer (menit)</h3>
-    <div class="dur-grid">
-      <label>Fokus<input id="inFocus" type="number" min="0.1" step="0.5" value="25"></label>
-      <label>Istirahat<input id="inShort" type="number" min="0.1" step="0.5" value="5"></label>
-      <label>Istirahat panjang<input id="inLong" type="number" min="0.1" step="0.5" value="15"></label>
-      <label>Sesi sblm pjg<input id="inCycle" type="number" min="1" max="12" step="1" value="4"></label>
+    <h3>Timer duration (minutes)</h3>
+    <div class="stepper" data-key="focus" data-step="0.5" data-min="0.1" data-max="999">
+      <span class="step-label">Focus</span>
+      <button class="glass-btn small step-btn" data-dir="-1" aria-label="Decrease focus duration">−</button>
+      <span class="step-val" id="stepFocus">25</span>
+      <button class="glass-btn small step-btn" data-dir="1" aria-label="Increase focus duration">+</button>
     </div>
-    <label class="check"><input id="chkAuto" type="checkbox" checked> Otomatis lanjut sesi berikut</label>
-    <label class="check"><input id="chkBreathe" type="checkbox" checked> Transisi napas 15 dtk sebelum istirahat</label>
-    <label class="check"><input id="chkHening" type="checkbox" checked> Mode Hening (sembunyikan UI saat fokus)</label>
+    <div class="stepper" data-key="short" data-step="0.5" data-min="0.1" data-max="999">
+      <span class="step-label">Short break</span>
+      <button class="glass-btn small step-btn" data-dir="-1" aria-label="Decrease short break duration">−</button>
+      <span class="step-val" id="stepShort">5</span>
+      <button class="glass-btn small step-btn" data-dir="1" aria-label="Increase short break duration">+</button>
+    </div>
+    <div class="stepper" data-key="long" data-step="0.5" data-min="0.1" data-max="999">
+      <span class="step-label">Long break</span>
+      <button class="glass-btn small step-btn" data-dir="-1" aria-label="Decrease long break duration">−</button>
+      <span class="step-val" id="stepLong">15</span>
+      <button class="glass-btn small step-btn" data-dir="1" aria-label="Increase long break duration">+</button>
+    </div>
+    <div class="stepper" data-key="cycle" data-step="1" data-min="1" data-max="12">
+      <span class="step-label">Sessions before long</span>
+      <button class="glass-btn small step-btn" data-dir="-1" aria-label="Decrease sessions before long break">−</button>
+      <span class="step-val" id="stepCycle">4</span>
+      <button class="glass-btn small step-btn" data-dir="1" aria-label="Increase sessions before long break">+</button>
+    </div>
+    <label class="check"><input id="chkAuto" type="checkbox" checked> Auto-continue to next session</label>
+    <label class="check"><input id="chkBreathe" type="checkbox" checked> 15s breathing transition before breaks</label>
+    <label class="check"><input id="chkHening" type="checkbox" checked> Zen mode (hide UI while focusing)</label>
   </section>
 
   <section class="set-group">
-    <h3>Suara alam · prosedural</h3>
-    <p class="hint" style="margin:0 0 6px">Dibuat langsung di browser, tanpa file, bisa offline.</p>
+    <h3>Nature sounds · procedural</h3>
+    <p class="hint" style="margin:0 0 6px">Generated live in the browser — no files, works offline.</p>
     <label class="slider-row">Pink noise<input id="slPink" type="range" min="0" max="100" value="0"></label>
     <label class="slider-row">Brown noise<input id="slBrown" type="range" min="0" max="100" value="0"></label>
     <label class="slider-row">Gamma 40Hz<input id="slGamma" type="range" min="0" max="100" value="0"></label>
   </section>
 
   <section class="set-group">
-    <h3>Suara & notifikasi</h3>
-    <label class="check"><input id="chkSound" type="checkbox" checked> Bunyi saat sesi selesai</label>
-    <label class="check"><input id="chkNotif" type="checkbox"> Notifikasi browser</label>
+    <h3>Sound &amp; notifications</h3>
+    <label class="check"><input id="chkSound" type="checkbox" checked> Sound when a session ends</label>
+    <label class="check"><input id="chkNotif" type="checkbox"> Browser notifications</label>
   </section>
 
   <section class="set-group">
     <h3>Data</h3>
-    <button id="clearData" class="glass-btn small danger wide">Hapus semua data tersimpan</button>
+    <button id="clearData" class="glass-btn small danger wide">Erase all saved data</button>
   </section>
 </aside>
 
 <!-- ===== Playlist FAB (bottom-left) — titles only ===== -->
-<button id="plFab" class="glass pl-fab no-drag chrome-fade" aria-label="Buka playlist" aria-expanded="false">♪</button>
+<button id="plFab" class="glass pl-fab no-drag chrome-fade" aria-label="Open playlist" aria-expanded="false">♪</button>
 
 <!-- ===== Playlist panel: judul track saja, tanpa player box ===== -->
 <section id="playlistPanel" class="glass panel no-drag hidden" aria-label="Playlist">
   <div class="panel-head">
     <h2>Playlist</h2>
-    <button id="plClose" class="glass-btn small" aria-label="Tutup playlist">✕</button>
+    <button id="plClose" class="glass-btn small" aria-label="Close playlist">✕</button>
   </div>
   <div class="pl-controls">
-    <button id="plPrev" class="glass-btn small" aria-label="Sebelumnya">⏮</button>
-    <button id="plPlayPause" class="glass-btn small" aria-label="Putar atau jeda">▶</button>
-    <button id="plNext" class="glass-btn small" aria-label="Berikutnya">⏭</button>
+    <button id="plPrev" class="glass-btn small" aria-label="Previous">⏮</button>
+    <button id="plPlayPause" class="glass-btn small" aria-label="Play or pause">▶</button>
+    <button id="plNext" class="glass-btn small" aria-label="Next">⏭</button>
     <span id="plNow" class="pl-now">—</span>
   </div>
   <ul id="plList" class="pl-list"></ul>
   <div class="pl-add">
     <div class="row">
-      <input id="plUrl" type="url" placeholder="Link YouTube / .mp3 / .mp4" spellcheck="false">
+      <input id="plUrl" type="url" placeholder="YouTube link / playlist / .mp3 / .mp4" spellcheck="false">
       <button id="plAdd" class="glass-btn small">＋</button>
     </div>
-    <p class="hint">Judul YouTube diambil otomatis. Player-nya disembunyikan.</p>
+    <p class="hint">Paste a track link, a YouTube or YouTube Music playlist link (imported whole), or a direct file. Titles are fetched automatically; the player stays hidden.</p>
   </div>
 </section>
 
@@ -163,9 +183,9 @@
 
 <!-- Vibe preview capsule (only when opening a #vibe= link) -->
 <div id="vibeCapsule" class="glass vibe-capsule hidden no-drag" role="status">
-  <span>Mencoba Vibe kiriman teman</span>
-  <button id="vibeKeep" class="glass-btn small">Simpan jadi milikku</button>
-  <button id="vibeDrop" class="glass-btn small" aria-label="Tutup pratinjau vibe">✕</button>
+  <span>Trying a vibe shared by a friend</span>
+  <button id="vibeKeep" class="glass-btn small">Keep it as mine</button>
+  <button id="vibeDrop" class="glass-btn small" aria-label="Close vibe preview">✕</button>
 </div>
 
 <div id="toast" class="glass toast hidden" role="status"></div>

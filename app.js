@@ -1,11 +1,12 @@
 /* ============================================================
-   Pomodoro — focus timer, liquid glass edition v3
+   Pomodoro — focus timer, liquid glass edition v4
    Vanilla JS, no frameworks. State persisted in localStorage.
    - Date.now()-delta timer (no drift), 250ms tick
    - Double-buffered video backgrounds + adaptive glass tint
    - Mode Hening, Satu Hal, breathing transition
    - Procedural WebAudio soundscape mixer
-   - Playlist: titles only, hidden YT / native engines
+   - Photo fallbacks per video preset, background video sound toggle
+   - Playlist: titles only, hidden YT / native engines, YouTube playlist import
    ============================================================ */
 'use strict';
 
@@ -13,35 +14,36 @@ const STORE_KEY = 'pomodoro:v3';
 const LEGACY_KEYS = ['pomodoro:v2', 'pomodoro:v1'];
 const BREATHE_SEC = 15;
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/pomodoro-timer@assets/videos/';
+const POSTER_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/pomodoro-timer@assets/posters/';
 
 const BG_PRESETS = [
-  { id: 'hujan-kaca',   name: 'Hujan di Kaca', url: CDN_BASE + 'hujan-kaca.mp4' },
-  { id: 'hutan-hujan',  name: 'Hutan Hujan',   url: CDN_BASE + 'hutan-hujan.mp4' },
-  { id: 'kota-malam',   name: 'Kota Malam',    url: CDN_BASE + 'kota-malam.mp4' },
-  { id: 'ruang-hangat', name: 'Ruang Hangat',  url: CDN_BASE + 'ruang-hangat.mp4' },
-  { id: 'senja-laut',   name: 'Senja di Laut', url: CDN_BASE + 'senja-laut.mp4' },
+  { id: 'hujan-kaca',   name: 'Rain on Glass', url: CDN_BASE + 'hujan-kaca.mp4',   poster: POSTER_BASE + 'hujan-kaca.jpg' },
+  { id: 'hutan-hujan',  name: 'Rainforest',    url: CDN_BASE + 'hutan-hujan.mp4',  poster: POSTER_BASE + 'hutan-hujan.jpg' },
+  { id: 'kota-malam',   name: 'Night City',    url: CDN_BASE + 'kota-malam.mp4',    poster: POSTER_BASE + 'kota-malam.jpg' },
+  { id: 'ruang-hangat', name: 'Cozy Room',     url: CDN_BASE + 'ruang-hangat.mp4', poster: POSTER_BASE + 'ruang-hangat.jpg' },
+  { id: 'senja-laut',   name: 'Sea Sunset',    url: CDN_BASE + 'senja-laut.mp4',   poster: POSTER_BASE + 'senja-laut.jpg' },
 ];
 const BG_IDS = BG_PRESETS.map(p => p.id);
 
 /* 12 clock styles — Google Fonts, lazy-loaded with digit subsetting (~2KB each) */
 const GF = (fam, spec) => `https://fonts.googleapis.com/css2?family=${fam}:${spec}&text=0123456789%3A&display=swap`;
 const CLOCK_STYLES = [
-  { id: 'air',     name: 'Tipis Udara',    font: GF('Plus+Jakarta+Sans', 'wght@200') },
-  { id: 'vogue',   name: 'Editorial Klasik', font: GF('Cormorant+Garamond', 'ital,wght@1,300') },
-  { id: 'kyoto',   name: 'Sinema Jepang',  font: GF('Shippori+Mincho', 'wght@400') },
-  { id: 'bauhaus', name: 'Swiss Arsitek',  font: GF('Space+Grotesk', 'wght@300') },
-  { id: 'kapsul',  name: 'Kapsul Tinggi',  font: GF('Antonio', 'wght@200') },
-  { id: 'ketik',   name: 'Mesin Ketik Senja', font: GF('JetBrains+Mono', 'wght@100') },
-  { id: 'organik', name: 'Kaca Organik',   font: GF('Quicksand', 'wght@300') },
-  { id: 'galeri',  name: 'Galeri Seni',    font: GF('Bodoni+Moda', 'opsz,wght@72,400') },
-  { id: 'kawat',   name: 'Garis Ganda',    font: GF('Bungee+Hairline', 'wght@400') },
-  { id: 'nordik',  name: 'Nordik Minimal', font: GF('Outfit', 'wght@100') },
-  { id: 'puisi',   name: 'Sastra Romantis', font: GF('Instrument+Serif', 'ital,wght@1,400') },
-  { id: 'zen',     name: 'Vertikal Zen',   font: GF('DM+Sans', 'wght@200') },
+  { id: 'air',     name: 'Air Thin',    font: GF('Plus+Jakarta+Sans', 'wght@200') },
+  { id: 'vogue',   name: 'Classic Editorial', font: GF('Cormorant+Garamond', 'ital,wght@1,300') },
+  { id: 'kyoto',   name: 'Japanese Cinema',  font: GF('Shippori+Mincho', 'wght@400') },
+  { id: 'bauhaus', name: 'Swiss Architect',  font: GF('Space+Grotesk', 'wght@300') },
+  { id: 'kapsul',  name: 'Tall Capsule',  font: GF('Antonio', 'wght@200') },
+  { id: 'ketik',   name: 'Dusk Typewriter', font: GF('JetBrains+Mono', 'wght@100') },
+  { id: 'organik', name: 'Organic Glass',   font: GF('Quicksand', 'wght@300') },
+  { id: 'galeri',  name: 'Art Gallery',    font: GF('Bodoni+Moda', 'opsz,wght@72,400') },
+  { id: 'kawat',   name: 'Double Line',    font: GF('Bungee+Hairline', 'wght@400') },
+  { id: 'nordik',  name: 'Nordic Minimal', font: GF('Outfit', 'wght@100') },
+  { id: 'puisi',   name: 'Romantic Prose', font: GF('Instrument+Serif', 'ital,wght@1,400') },
+  { id: 'zen',     name: 'Vertical Zen',   font: GF('DM+Sans', 'wght@200') },
 ];
 const CLOCK_IDS = CLOCK_STYLES.map(s => s.id);
 
-const MODE_LABEL = { focus: 'Fokus', short: 'Istirahat', long: 'Istirahat Panjang', breathe: 'Tarik Napas', overtime: 'Mengalir' };
+const MODE_LABEL = { focus: 'Focus', short: 'Short break', long: 'Long break', breathe: 'Breathe', overtime: 'Flowing' };
 const STYLE_MIGRATE = { big: 'air', min: 'ketik', analog: 'air', lock: 'air', serif: 'vogue', mono: 'ketik' };
 const DEFAULT_STATE = {
   durations: { focus: 25, short: 5, long: 15 },
@@ -55,6 +57,7 @@ const DEFAULT_STATE = {
   clockPos: null,          // {fx, fy} viewport fractions of clock center
   bgId: 'hujan-kaca',
   bgCustom: '',
+  bgSound: false,         // background video sound on/off
   playlist: [],            // [{id, title, url, type, ytId}]
   currentTrack: -1,
   soundscape: { pink: 0, brown: 0, gamma: 0 },
@@ -205,7 +208,7 @@ function tick() {
   else render();
 }
 
-/* --- Mode Mengalir: at 00:00 keep flowing, count up --- */
+/* --- Flow mode: at 00:00 keep flowing, count up --- */
 function enterOvertime() {
   clearInterval(T.timerId);
   T.completedFocus++;
@@ -222,7 +225,7 @@ function enterOvertime() {
   $('#clockCard').classList.add('overtime');
   $('#overtimeBtn').classList.remove('hidden');
   lockWake();
-  toast('Waktunya habis — tapi kalau lagi khusyuk, lanjut aja.');
+  toast('Time is up — but if you are in the flow, keep going.');
   render();
 }
 
@@ -245,14 +248,14 @@ function endOvertime() {
     $('#clockInner').classList.remove('breathing');
     void $('#clockInner').offsetWidth;
     $('#clockInner').classList.add('breathing');
-    toast(extra > 0 ? `+${Math.floor(extra / 60)} mnt mengalir dicatat. Tarik napas dulu…` : 'Tarik napas dulu…');
+    toast(extra > 0 ? `+${Math.floor(extra / 60)} min of flow logged. Take a breath…` : 'Take a breath…');
     render();
     start();
     return;
   }
   T.mode = modeAfterFocus();
   T.remaining = durSec(T.mode);
-  toast('Saatnya istirahat.');
+  toast('Time for a break.');
   render();
   if (S.autoContinue) start();
 }
@@ -264,20 +267,20 @@ function completeSession() {
   const finished = T.mode;
 
   if (finished === 'focus') {
-    // v3.5: never hard-stop at 00:00 — flow into Mode Mengalir
+    // never hard-stop at 00:00 — flow into Flow mode instead
     enterOvertime();
     return;
   } else if (finished === 'breathe') {
     $('#clockInner').classList.remove('breathing');
     T.mode = modeAfterFocus();
     T.remaining = durSec(T.mode);
-    toast(`Saatnya ${MODE_LABEL[T.mode].toLowerCase()}.`);
+    toast(`Time for ${MODE_LABEL[T.mode].toLowerCase()}.`);
   } else {
     bowlStrike();
     notifyUser('break');
     T.mode = 'focus';
     T.remaining = durSec('focus');
-    toast('Istirahat selesai. Balik fokus lagi.');
+    toast('Break over. Back to focus.');
   }
 
   render();
@@ -298,7 +301,7 @@ function skipSession() {
   }
   T.remaining = durSec(T.mode);
   render();
-  toast(`Sesi ${MODE_LABEL[skipped].toLowerCase()} dilewati.`);
+  toast(`Skipped ${MODE_LABEL[skipped].toLowerCase()} session.`);
 }
 
 /* ---------------- rendering ---------------- */
@@ -322,10 +325,10 @@ function render() {
 
   $$('[data-time]').forEach(el => { el.innerHTML = timeHTML; });
   $$('[data-mode-label]').forEach(el => { el.textContent = label; });
-  $$('[data-cycle]').forEach(el => { el.textContent = `Sesi ${cycleNum}/${S.cycle}`; });
+  $$('[data-cycle]').forEach(el => { el.textContent = `Session ${cycleNum}/${S.cycle}`; });
   $$('[data-next]').forEach(el => {
-    el.textContent = 'berikutnya: ' + (T.mode === 'focus' || T.mode === 'breathe' || T.mode === 'overtime'
-      ? MODE_LABEL[modeAfterFocus()].toLowerCase() : 'fokus');
+    el.textContent = 'next: ' + (T.mode === 'focus' || T.mode === 'breathe' || T.mode === 'overtime'
+      ? MODE_LABEL[modeAfterFocus()].toLowerCase() : 'focus');
   });
   $$('[data-progress]').forEach(el => { el.style.width = `${(p * 100).toFixed(1)}%`; });
 
@@ -419,7 +422,7 @@ function notifyUser(kind) {
   if (Notification.permission !== 'granted') return;
   try {
     new Notification('Pomodoro', {
-      body: kind === 'focus' ? 'Sesi fokus selesai. Waktunya istirahat.' : 'Istirahat selesai. Balik fokus lagi.',
+      body: kind === 'focus' ? 'Focus session done. Time for a break.' : 'Break over. Back to focus.',
     });
   } catch {}
 }
@@ -523,7 +526,7 @@ function resetClockPos() {
   S.clockPos = null; save();
   card.style.left = ''; card.style.top = ''; card.style.transform = '';
   card.classList.add('centered');
-  toast('Posisi jam dikembalikan ke tengah.');
+  toast('Clock reset to center.');
 }
 
 /* ---------------- 12 clock styles (lazy Google Fonts) ---------------- */
@@ -537,35 +540,35 @@ function ensureFont(styleId) {
   link.href = st.font;
   document.head.appendChild(link);
 }
-function renderStylePicker() {
-  const wrap = $('#stylePicker');
-  wrap.innerHTML = '';
+/* clock style dropdown (render only; change handler is bound once in initSettings) */
+function renderClockSelect() {
+  const sel = $('#clockSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
   CLOCK_STYLES.forEach(st => {
-    const b = document.createElement('button');
-    b.className = 'glass-btn small';
-    b.dataset.style = st.id;
-    b.textContent = st.name;
-    b.title = st.name;
-    b.addEventListener('click', () => setClockStyle(st.id));
-    wrap.appendChild(b);
+    const o = document.createElement('option');
+    o.value = st.id;
+    o.textContent = st.name;
+    sel.appendChild(o);
   });
-  syncStylePicker();
+  syncClockSelect();
 }
-function syncStylePicker() {
-  $$('#stylePicker button').forEach(b => b.classList.toggle('active', b.dataset.style === S.clockStyle));
+function syncClockSelect() {
+  const sel = $('#clockSelect');
+  if (sel) sel.value = S.clockStyle;
 }
 function setClockStyle(style) {
   if (!CLOCK_IDS.includes(style)) style = 'air';
   S.clockStyle = style; save();
   ensureFont(style);
   $('#clockCard').dataset.clockStyle = style;
-  syncStylePicker();
+  syncClockSelect();
 }
 function cycleClockStyle(dir = 1) {
   const i = CLOCK_IDS.indexOf(S.clockStyle);
   const next = CLOCK_IDS[(i + dir + CLOCK_IDS.length) % CLOCK_IDS.length];
   setClockStyle(next);
-  toast(`Model jam: ${CLOCK_STYLES.find(s => s.id === next).name}`);
+  toast(`Clock style: ${CLOCK_STYLES.find(s => s.id === next).name}`);
 }
 
 /* ---------------- background: double-buffered crossfade + YouTube engine ---------------- */
@@ -581,6 +584,33 @@ function bgUrl() {
 function bgCustomYtId() {
   const m = (S.bgCustom || '').match(YT_RE);
   return m ? m[1] : null;
+}
+
+/* instant photo fallback: shown behind a preset's video while it loads
+   (or if it fails). Custom backgrounds have no photo -> gradient stays. */
+function setBgPhoto(url) {
+  const img = $('#bgPhoto');
+  if (!img) return;
+  if (!url) { img.classList.remove('on'); img.removeAttribute('src'); return; }
+  if (img.getAttribute('src') !== url) img.src = url;
+  img.classList.add('on');
+}
+function presetPoster() {
+  const p = BG_PRESETS.find(p => p.id === S.bgId);
+  return (p && !S.bgCustom) ? p.poster : '';
+}
+
+/* background video sound toggle: muted <video> elements + the YouTube
+   background iframe (via enablejsapi postMessage) */
+function applyBgSound() {
+  const muted = !S.bgSound;
+  [bgFront, bgBack].forEach(v => { if (v) v.muted = muted; });
+  if (bgYtActive && bgYtEl && bgYtEl.contentWindow) {
+    try {
+      bgYtEl.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: muted ? 'mute' : 'unMute', args: '' }), '*');
+    } catch { /* iframe not ready yet */ }
+  }
 }
 
 /* CORS: crossorigin="anonymous" ONLY for our trusted jsDelivr URLs.
@@ -610,7 +640,7 @@ function wireVideoCommon(v) {
     if (!bgErrorToasted) {
       bgErrorToasted = true;
       clearTimeout(bgFailTimer);
-      toast('Background gagal dimuat, coba preset lain.');
+      toast('Background failed to load — try another preset.');
     }
   });
 }
@@ -622,13 +652,14 @@ function showYouTubeBg(ytId) {
   stopTintSampler();
   document.documentElement.style.setProperty('--ambient', NEUTRAL_TINT);
   [bgFront, bgBack].forEach(v => { if (v) { v.classList.remove('on'); v.pause(); } });
+  setBgPhoto(''); // custom bg: gradient behind the iframe
   bgYtEl.classList.remove('on');
   bgYtEl.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}`
-    + `&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3`;
-  bgYtEl.addEventListener('load', () => bgYtEl.classList.add('on'), { once: true });
+    + `&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3&enablejsapi=1`;
+  bgYtEl.addEventListener('load', () => { bgYtEl.classList.add('on'); applyBgSound(); }, { once: true });
   clearTimeout(bgFailTimer);
   bgFailTimer = setTimeout(() => bgYtEl.classList.add('on'), 4000); // don't hang on slow load
-  renderPresetGrid();
+  renderBgSelect();
 }
 
 function hideYouTubeBg() {
@@ -646,6 +677,7 @@ function switchBackground() {
   hideYouTubeBg();
 
   const url = bgUrl();
+  setBgPhoto(presetPoster()); // instant photo while the video loads
   // drop any stale canplaythrough listener from a previous in-flight switch
   if (bgPendingReady) { bgBack.removeEventListener('canplaythrough', bgPendingReady); bgPendingReady = null; }
   bgBack.classList.remove('on');
@@ -673,10 +705,10 @@ function switchBackground() {
   bgFailTimer = setTimeout(() => {
     if (!bgFront.classList.contains('on') && !bgBack.classList.contains('on') && !bgErrorToasted) {
       bgErrorToasted = true;
-      toast('Background gagal dimuat, coba preset lain.');
+      toast('Background failed to load — try another preset.');
     }
   }, 12000);
-  renderPresetGrid();
+  renderBgSelect();
 }
 
 function applyBackground() { switchBackground(); }
@@ -724,20 +756,39 @@ function initVisibilitySaver() {
   });
 }
 
-function renderPresetGrid() {
-  const grid = $('#presetGrid');
-  grid.innerHTML = '';
+/* background preset dropdown (render only; change handler is bound once in initSettings) */
+function renderBgSelect() {
+  const sel = $('#bgSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
   BG_PRESETS.forEach(p => {
-    const b = document.createElement('button');
-    b.className = 'glass-btn small' + (S.bgId === p.id && !S.bgCustom ? ' active' : '');
-    b.textContent = p.name;
-    b.addEventListener('click', () => {
-      S.bgId = p.id; S.bgCustom = ''; $('#customBgUrl').value = ''; save();
-      applyBackground();
-      toast(`Background: ${p.name}`);
-    });
-    grid.appendChild(b);
+    const o = document.createElement('option');
+    o.value = p.id;
+    o.textContent = p.name;
+    sel.appendChild(o);
   });
+  const c = document.createElement('option');
+  c.value = 'custom';
+  c.textContent = 'Custom URL…';
+  sel.appendChild(c);
+  sel.value = S.bgCustom ? 'custom' : S.bgId;
+}
+function onBgSelectChange() {
+  const sel = $('#bgSelect');
+  const id = sel.value;
+  if (id === 'custom') {
+    if (!S.bgCustom) {
+      toast('Paste a custom video URL below first.');
+      renderBgSelect();
+      $('#customBgUrl').focus();
+      return;
+    }
+    applyBackground();
+    return;
+  }
+  S.bgId = id; S.bgCustom = ''; $('#customBgUrl').value = ''; save();
+  applyBackground();
+  toast(`Background: ${BG_PRESETS.find(p => p.id === id).name}`);
 }
 
 /* ---------------- Mode Hening ---------------- */
@@ -764,10 +815,10 @@ function toggleHeningForce() {
   if (document.body.classList.contains('hening')) {
     document.body.classList.remove('hening');
     lastPointerMove = Date.now();
-    toast('Mode Hening mati.');
+    toast('Zen mode off.');
   } else {
     document.body.classList.add('hening');
-    toast('Mode Hening nyala.');
+    toast('Zen mode on.');
   }
 }
 function initShortcuts() {
@@ -822,7 +873,7 @@ function dissolveOneThing() {
     S.oneThing.text = ''; save();
     wrap.classList.remove('dissolve');
   }, 650);
-  toast('Satu hal selesai. Kerja bagus.');
+  toast('One thing done. Nice work.');
 }
 
 /* ---------------- procedural soundscape mixer ---------------- */
@@ -926,7 +977,7 @@ function toggleMute() {
     if (el && !el.paused) fadeMediaEl(el, scMuted);
   });
   try { if (ytPlayer) { scMuted ? ytPlayer.mute() : ytPlayer.unMute(); } } catch {}
-  toast(scMuted ? 'Suara dimatikan.' : 'Suara dinyalakan.');
+  toast(scMuted ? 'Sound muted.' : 'Sound on.');
 }
 function applySoundscapeLevels() {
   const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slGamma', 'gamma']];
@@ -949,8 +1000,12 @@ function initSoundscape() {
 
 /* ---------------- playlist: titles only, hidden engines ---------------- */
 const YT_RE = /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/;
+/* playlist links: youtube.com/playlist?list=…, watch?v=…&list=…, music.youtube.com/… */
+const YT_LIST_RE = /[?&]list=([\w-]{2,})/;
 
 function parseMedia(url) {
+  const lm = url.match(YT_LIST_RE);
+  if (lm) return { type: 'ytplaylist', id: lm[1] };
   const m = url.match(YT_RE);
   if (m) return { type: 'youtube', id: m[1] };
   if (/\.(mp3|wav|ogg|opus|m4a)(\?|#|$)/i.test(url)) return { type: 'audio' };
@@ -964,20 +1019,32 @@ async function fetchYtTitle(ytId) {
     const j = await r.json();
     if (j && j.title) return j.title;
   } catch { /* offline or blocked */ }
-  return 'Video YouTube';
+  return 'YouTube video';
+}
+
+async function fetchYtPlaylistTitle(listId) {
+  try {
+    const r = await fetch(`https://noembed.com/embed?url=${encodeURIComponent('https://www.youtube.com/playlist?list=' + listId)}`);
+    const j = await r.json();
+    if (j && j.title) return j.title;
+  } catch { /* offline or blocked */ }
+  return 'YouTube Playlist';
 }
 
 async function addTrack(url) {
   url = (url || '').trim();
   const media = parseMedia(url);
   if (media.type === 'unknown') {
-    toast('Link tidak dikenali. Pakai link YouTube atau file audio/video langsung.');
+    toast('Link not recognized. Use a YouTube link or a direct audio/video file.');
     return false;
   }
   let title = `Track ${S.playlist.length + 1}`;
   if (media.type === 'youtube') {
-    toast('Mengambil judul…');
+    toast('Fetching title…');
     title = await fetchYtTitle(media.id);
+  } else if (media.type === 'ytplaylist') {
+    toast('Importing playlist…');
+    title = await fetchYtPlaylistTitle(media.id);
   } else {
     try {
       const u = new URL(url);
@@ -985,9 +1052,13 @@ async function addTrack(url) {
       if (base) title = decodeURIComponent(base).replace(/[-_]+/g, ' ').slice(0, 60) || title;
     } catch { /* keep default */ }
   }
-  S.playlist.push({ id: Date.now().toString(36), title, url, type: media.type, ytId: media.id || null });
+  S.playlist.push({
+    id: Date.now().toString(36), title, url, type: media.type,
+    ytId: media.type === 'youtube' ? media.id : null,
+    listId: media.type === 'ytplaylist' ? media.id : null,
+  });
   save(); renderPlaylist();
-  toast(`Ditambahkan: ${title.slice(0, 40)}`);
+  toast(`Added: ${title.slice(0, 40)}`);
   return true;
 }
 
@@ -1010,26 +1081,44 @@ function loadYtApi(cb) {
   ytApiLoading = true;
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
-  tag.onerror = () => { toast('Gagal memuat YouTube API.'); };
+  tag.onerror = () => { toast('Failed to load the YouTube API.'); };
   document.head.appendChild(tag);
 }
 window.onYouTubeIframeAPIReady = () => { if (window.__ytApiCb) window.__ytApiCb(); };
 
+/* a 'ytplaylist' track loads the whole YouTube / YouTube Music playlist into
+   the hidden player natively (auto-advance inside the playlist is YouTube's).
+   ytListMode marks that the current track is a playlist, so prev/next step
+   between its videos instead of jumping to another track entry. */
+let ytListMode = false;
 function ytEnsurePlayer(track) {
-  if (ytPlayer) { ytReadyTrack = track; ytPlayer.loadVideoById(track.ytId); return; }
   ytReadyTrack = track;
-  ytPlayer = new YT.Player('ytPlayer', {
+  if (track.type === 'ytplaylist') {
+    if (ytPlayer) { ytListMode = true; ytPlayer.loadPlaylist({ listType: 'playlist', list: track.listId }); return; }
+    ytPlayer = createYtPlayer();
+    return;
+  }
+  if (ytPlayer) { ytListMode = false; ytPlayer.loadVideoById(track.ytId); return; }
+  ytPlayer = createYtPlayer();
+}
+function createYtPlayer() {
+  return new YT.Player('ytPlayer', {
     width: '1', height: '1',
     playerVars: { autoplay: 1, rel: 0, playsinline: 1 },
     events: {
-      onReady: (e) => { if (ytReadyTrack) e.target.loadVideoById(ytReadyTrack.ytId); },
+      onReady: (e) => {
+        const t = ytReadyTrack;
+        if (!t) return;
+        if (t.type === 'ytplaylist') { ytListMode = true; e.target.loadPlaylist({ listType: 'playlist', list: t.listId }); }
+        else { ytListMode = false; e.target.loadVideoById(t.ytId); }
+      },
       onStateChange: (e) => {
         if (e.data === YT.PlayerState.PLAYING) { ytPlaying = true; $('#plPlayPause').textContent = '⏸'; }
         else if (e.data === YT.PlayerState.PAUSED) { ytPlaying = false; $('#plPlayPause').textContent = '▶'; }
         else if (e.data === YT.PlayerState.ENDED) { stepTrack(1); }
       },
       onError: () => {
-        toast('Video tidak bisa diputar (embed dibatasi pemiliknya).');
+        toast('Video cannot be played (embedding disabled by its owner).');
         stepTrack(1);
       },
     },
@@ -1055,14 +1144,14 @@ function playTrack(i) {
   v.pause(); v.removeAttribute('src');
   a.pause(); a.removeAttribute('src');
 
-  if (t.type === 'youtube') {
+  if (t.type === 'youtube' || t.type === 'ytplaylist') {
     loadYtApi(() => ytEnsurePlayer(t));
   } else if (t.type === 'audio') {
     a.src = t.url;
-    a.play().then(() => setMediaSession(t, a)).catch(() => toast('Audio gagal diputar.'));
+    a.play().then(() => setMediaSession(t, a)).catch(() => toast('Audio failed to play.'));
   } else {
     v.src = t.url;
-    v.play().then(() => setMediaSession(t, v)).catch(() => toast('Video gagal diputar.'));
+    v.play().then(() => setMediaSession(t, v)).catch(() => toast('Video failed to play.'));
   }
   $('#plNow').textContent = t.title;
   $('#plPlayPause').textContent = '⏸';
@@ -1083,7 +1172,7 @@ function setMediaSession(t, el) {
 function togglePlayPause() {
   if (S.currentTrack < 0) { if (S.playlist.length) playTrack(0); return; }
   const t = S.playlist[S.currentTrack];
-  if (t.type === 'youtube') {
+  if (t.type === 'youtube' || t.type === 'ytplaylist') {
     if (!ytPlayer) { playTrack(S.currentTrack); return; }
     try { ytPlaying ? ytPlayer.pauseVideo() : ytPlayer.playVideo(); } catch {}
     return;
@@ -1097,18 +1186,28 @@ function stepTrack(dir) {
   if (!S.playlist.length) return;
   playTrack((S.currentTrack + dir + S.playlist.length) % S.playlist.length);
 }
+/* prev/next: inside an imported YouTube playlist, step between its videos;
+   otherwise step between track entries */
+function plStep(dir) {
+  const t = S.playlist[S.currentTrack];
+  if (t && t.type === 'ytplaylist' && ytPlayer && ytListMode) {
+    try { dir > 0 ? ytPlayer.nextVideo() : ytPlayer.previousVideo(); } catch {}
+    return;
+  }
+  stepTrack(dir);
+}
 
 function renderPlaylist() {
   const ul = $('#plList');
   ul.innerHTML = '';
-  if (!S.playlist.length) ul.innerHTML = '<li class="pl-empty-list">Playlist kosong.</li>';
+  if (!S.playlist.length) ul.innerHTML = '<li class="pl-empty-list">Playlist is empty.</li>';
   S.playlist.forEach((t, i) => {
     const li = document.createElement('li');
     if (i === S.currentTrack) li.className = 'playing';
     const span = document.createElement('span');
     span.className = 't'; span.textContent = t.title; span.title = t.title;
     const rm = document.createElement('button');
-    rm.className = 'rm'; rm.textContent = '✕'; rm.setAttribute('aria-label', `Hapus ${t.title}`);
+    rm.className = 'rm'; rm.textContent = '✕'; rm.setAttribute('aria-label', `Remove ${t.title}`);
     rm.addEventListener('click', (e) => { e.stopPropagation(); removeTrack(t.id); });
     li.append(span, rm);
     li.addEventListener('click', () => playTrack(i));
@@ -1121,15 +1220,15 @@ function renderPlaylist() {
 function initPlaylist() {
   $('#plAdd').addEventListener('click', async () => {
     const url = $('#plUrl').value.trim();
-    if (!url) { toast('Tempel linknya dulu.'); return; }
+    if (!url) { toast('Paste a link first.'); return; }
     $('#plAdd').disabled = true;
     try { if (await addTrack(url)) $('#plUrl').value = ''; }
     finally { $('#plAdd').disabled = false; }
   });
   $('#plUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#plAdd').click(); });
   $('#plPlayPause').addEventListener('click', togglePlayPause);
-  $('#plNext').addEventListener('click', () => stepTrack(1));
-  $('#plPrev').addEventListener('click', () => stepTrack(-1));
+  $('#plNext').addEventListener('click', () => plStep(1));
+  $('#plPrev').addEventListener('click', () => plStep(-1));
   $('#plVideo').addEventListener('ended', () => stepTrack(1));
   $('#plAudio').addEventListener('ended', () => stepTrack(1));
   const togglePl = (open) => {
@@ -1145,6 +1244,7 @@ function initPlaylist() {
 
 /* ---------------- settings ---------------- */
 let settingsToggle = null; // set by initSettings; used by the global shortcut handler
+const stepperPaints = [];  // repaint fns, so vibe previews refresh the steppers too
 function initSettings() {
   const panel = $('#settingsPanel'), btn = $('#menuBtn');
   const toggle = (open) => {
@@ -1154,40 +1254,56 @@ function initSettings() {
   };
   settingsToggle = toggle;
   btn.addEventListener('click', () => toggle());
-  $('#settingsClose').addEventListener('click', () => toggle(false));
+  // no inner close button: the hamburger outside morphs into ✕
 
-  renderPresetGrid();
+  renderBgSelect();
+  $('#bgSelect').addEventListener('change', onBgSelectChange);
   if (S.bgCustom) $('#customBgUrl').value = S.bgCustom;
   $('#applyBgUrl').addEventListener('click', () => {
     const url = $('#customBgUrl').value.trim();
-    if (!url) { toast('Tempel URL videonya dulu.'); return; }
+    if (!url) { toast('Paste the video URL first.'); return; }
     S.bgCustom = url; S.bgId = 'custom'; save();
     applyBackground();
-    toast('Background custom diterapkan.');
+    renderBgSelect();
+    toast('Custom background applied.');
+  });
+  const bgSnd = $('#chkBgSound');
+  bgSnd.checked = !!S.bgSound;
+  bgSnd.addEventListener('change', () => {
+    S.bgSound = bgSnd.checked; save();
+    applyBgSound();
+    // enabling sound inside the click gesture lets the browser unmute playback
+    if (S.bgSound && bgFront && !bgFront.paused) bgFront.play().catch(() => {});
+    toast(S.bgSound ? 'Background sound on.' : 'Background sound off.');
   });
 
-  renderStylePicker();
+  renderClockSelect();
+  $('#clockSelect').addEventListener('change', (e) => setClockStyle(e.target.value));
   $('#resetClockPos').addEventListener('click', resetClockPos);
   $('#vibeBtn').addEventListener('click', shareVibe);
 
-  const bindDur = (id, key) => {
-    const el = $(id);
-    el.value = S.durations[key];
-    el.addEventListener('change', () => {
-      const v = parseFloat(el.value);
-      if (!isFinite(v) || v < 0.1) { el.value = S.durations[key]; toast('Durasi minimal 0,1 menit.'); return; }
-      S.durations[key] = Math.min(999, v); save();
+  // duration steppers: round − / + buttons, no native spinners
+  $$('.stepper').forEach(wrap => {
+    const key = wrap.dataset.key;               // focus | short | long | cycle
+    const step = parseFloat(wrap.dataset.step);
+    const min = parseFloat(wrap.dataset.min);
+    const max = parseFloat(wrap.dataset.max);
+    const valEl = wrap.querySelector('.step-val');
+    const get = () => key === 'cycle' ? S.cycle : S.durations[key];
+    const paint = () => { valEl.textContent = String(Math.round(get() * 10) / 10); };
+    const set = (v) => {
+      v = Math.round(v / step) * step;
+      v = Math.round(v * 10) / 10;
+      v = Math.min(max, Math.max(min, v)); // clamp AFTER rounding, so min survives
+      if (key === 'cycle') S.cycle = Math.round(v); else S.durations[key] = v;
+      save();
       if (!T.running) T.remaining = durSec(T.mode);
-      render();
-    });
-  };
-  bindDur('#inFocus', 'focus'); bindDur('#inShort', 'short'); bindDur('#inLong', 'long');
-  const cyc = $('#inCycle');
-  cyc.value = S.cycle;
-  cyc.addEventListener('change', () => {
-    const v = parseInt(cyc.value, 10);
-    if (!isFinite(v) || v < 1 || v > 12) { cyc.value = S.cycle; toast('Isi 1–12.'); return; }
-    S.cycle = v; save(); render();
+      paint(); render();
+    };
+    wrap.querySelectorAll('.step-btn').forEach(b =>
+      b.addEventListener('click', () => set(get() + parseFloat(b.dataset.dir) * step)));
+    stepperPaints.push(paint);
+    paint();
   });
 
   const bindCheck = (sel, key) => {
@@ -1202,17 +1318,17 @@ function initSettings() {
   snd.addEventListener('change', () => { S.sound = snd.checked; save(); });
   const nt = $('#chkNotif'); nt.checked = S.notif && 'Notification' in window && Notification.permission === 'granted';
   nt.addEventListener('change', async () => {
-    if (!('Notification' in window)) { toast('Browser tidak mendukung notifikasi.'); nt.checked = false; return; }
+    if (!('Notification' in window)) { toast('This browser does not support notifications.'); nt.checked = false; return; }
     if (nt.checked) {
       const perm = await Notification.requestPermission();
-      if (perm !== 'granted') { toast('Izin notifikasi ditolak.'); nt.checked = false; S.notif = false; }
-      else { S.notif = true; toast('Notifikasi diaktifkan.'); }
+      if (perm !== 'granted') { toast('Notification permission denied.'); nt.checked = false; S.notif = false; }
+      else { S.notif = true; toast('Notifications enabled.'); }
     } else S.notif = false;
     save();
   });
 
   $('#clearData').addEventListener('click', () => {
-    if (confirm('Hapus semua data Pomodoro yang tersimpan?')) {
+    if (confirm('Erase all saved Pomodoro data?')) {
       localStorage.removeItem(STORE_KEY);
       LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
       location.reload();
@@ -1268,7 +1384,7 @@ function decodeVibe(hash) {
 
 function shareVibe() {
   const link = `${location.origin}${location.pathname}#vibe=${encodeVibe(collectVibe())}`;
-  const done = () => toast('Link Vibe tersalin — siap dibagikan.');
+  const done = () => toast('Vibe link copied — ready to share.');
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(link).then(done).catch(() => fallbackCopy(link, done));
   } else fallbackCopy(link, done);
@@ -1279,7 +1395,7 @@ function fallbackCopy(text, done) {
     ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
     document.body.appendChild(ta); ta.select();
     document.execCommand('copy'); ta.remove(); done();
-  } catch { toast('Gagal menyalin.'); }
+  } catch { toast('Failed to copy.'); }
 }
 
 /* apply a vibe as a session-only override: S changes in memory, but save()
@@ -1303,7 +1419,8 @@ function applyVibeSession(v) {
   if (v.cy !== undefined) S.cycle = v.cy;
   if (!T.running) T.remaining = durSec(T.mode);
   applyBackground();
-  renderPresetGrid();
+  renderBgSelect();
+  stepperPaints.forEach(fn => fn());
   render();
   if (v.tu) addTrack(v.tu); // additive; save() is blocked so it stays session-only
   $('#vibeCapsule').classList.remove('hidden');
@@ -1316,7 +1433,7 @@ function keepVibe() {
   vibePreview = null;
   $('#vibeCapsule').classList.add('hidden');
   history.replaceState(null, '', location.pathname + location.search);
-  toast('Vibe disimpan jadi milikmu.');
+  toast('Vibe saved as yours.');
 }
 function dropVibe() {
   history.replaceState(null, '', location.pathname + location.search);
@@ -1325,7 +1442,7 @@ function dropVibe() {
 function initVibeFromHash() {
   if (!location.hash.startsWith('#vibe=')) return;
   const v = decodeVibe(location.hash.slice(6));
-  if (!v) { toast('Link Vibe tidak valid.'); return; }
+  if (!v) { toast('Invalid Vibe link.'); return; }
   applyVibeSession(v);
 }
 
@@ -1341,6 +1458,7 @@ function init() {
   if (firstYt) {
     showYouTubeBg(firstYt);
   } else {
+    setBgPhoto(presetPoster()); // instant photo while the video loads
     setVideoSource(bgFront, bgUrl());
     const onFirst = () => {
       bgFront.removeEventListener('canplaythrough', onFirst);
@@ -1351,11 +1469,13 @@ function init() {
     bgFailTimer = setTimeout(() => {
       if (!bgFront.classList.contains('on') && !bgErrorToasted) {
         bgErrorToasted = true;
-        toast('Background gagal dimuat, coba preset lain.');
+        toast('Background failed to load — try another preset.');
       }
     }, 12000);
   }
-  renderPresetGrid();
+  applyBgSound();
+  renderBgSelect();
+  renderClockSelect();
 
   $('#btnStartPause').addEventListener('click', () => (T.running ? pause() : start()));
   $('#btnReset').addEventListener('click', resetSession);
@@ -1374,7 +1494,7 @@ function init() {
   initShortcuts();
   initVibeFromHash();
 
-  if (!S.clockPos) setTimeout(() => toast('Tahan & seret jam ke mana aja', 4000), 1200);
+  if (!S.clockPos) setTimeout(() => toast('Hold & drag the clock anywhere', 4000), 1200);
   else hintShown = false;
 
   T.remaining = durSec(T.mode);

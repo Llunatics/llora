@@ -91,20 +91,66 @@ with sync_playwright() as p:
     check("skip overtime -> break (no double count)", pg.evaluate("T.mode") in ("short", "long"))
     pg.evaluate("T.mode='focus'; T.completedFocus=0; T.remaining=durSec('focus'); render();")
 
-    # --- 12 clock styles via picker (real clicks) ---
+    # --- settings panel: no double X, dropdowns, steppers, bg sound ---
     pg.click("#menuBtn")
     pg.wait_for_timeout(400)
-    check("12 style buttons rendered", pg.eval_on_selector_all("#stylePicker button", "els => els.length") == 12)
+    check("no inner close button (single X via hamburger)",
+          pg.eval_on_selector_all("#settingsClose", "els => els.length") == 0)
+    check("bg dropdown: 5 presets + custom",
+          pg.eval_on_selector_all("#bgSelect option", "els => els.length") == 6)
+    check("clock dropdown: 12 styles",
+          pg.eval_on_selector_all("#clockSelect option", "els => els.length") == 12)
+    check("html lang is en", pg.evaluate("document.documentElement.lang") == "en")
     for sid in ["air", "kyoto", "kawat"]:
-        pg.click(f"#stylePicker button[data-style='{sid}']")
+        pg.select_option("#clockSelect", sid)
+        pg.wait_for_timeout(150)
         ds = pg.eval_on_selector("#clockCard", "el => el.dataset.clockStyle")
         check(f"style {sid} applies", ds == sid and pg.evaluate("S.clockStyle") == sid, ds)
-    pg.click("#stylePicker button[data-style='zen']")
+    pg.select_option("#clockSelect", "zen")
     pg.wait_for_timeout(200)
     check("zen stacked: colon hidden",
           pg.eval_on_selector("#clockCard .time-display .colon", "el => getComputedStyle(el).display") == "none")
     check("font lazy-load link injected", pg.eval_on_selector_all(
         "link[href*='fonts.googleapis.com']", "els => els.length") >= 1)
+
+    # --- photo fallback per preset ---
+    pg.select_option("#bgSelect", "hutan-hujan")
+    pg.wait_for_timeout(300)
+    check("photo fallback shows for preset",
+          pg.eval_on_selector("#bgPhoto", "el => el.classList.contains('on')"))
+    check("photo src is the preset poster",
+          "posters/hutan-hujan.jpg" in pg.eval_on_selector("#bgPhoto", "el => el.src"))
+    check("select reflects preset", pg.eval_on_selector("#bgSelect", "el => el.value") == "hutan-hujan")
+
+    # --- steppers (real clicks, no native spinners) ---
+    check("no number inputs left", pg.eval_on_selector_all("input[type=number]", "els => els.length") == 0)
+    pg.evaluate("S.durations.focus = 25;")
+    pg.click(".stepper[data-key='focus'] .step-btn[data-dir='1']")
+    pg.wait_for_timeout(150)
+    check("stepper + increases 0.5", pg.evaluate("S.durations.focus") == 25.5,
+          pg.evaluate("S.durations.focus"))
+    check("stepper value paints", pg.eval_on_selector("#stepFocus", "el => el.textContent") == "25.5")
+    pg.click(".stepper[data-key='focus'] .step-btn[data-dir='-1']")
+    pg.click(".stepper[data-key='focus'] .step-btn[data-dir='-1']")
+    check("stepper − decreases", pg.evaluate("S.durations.focus") == 24.5)
+    pg.evaluate("S.durations.focus = 0.1;")
+    pg.click(".stepper[data-key='focus'] .step-btn[data-dir='-1']")
+    check("stepper clamps at min", pg.evaluate("S.durations.focus") == 0.1)
+    pg.evaluate("S.cycle = 4;")
+    pg.click(".stepper[data-key='cycle'] .step-btn[data-dir='1']")
+    check("cycle stepper steps 1", pg.evaluate("S.cycle") == 5)
+
+    # --- background video sound toggle ---
+    check("bg sound defaults off",
+          pg.evaluate("S.bgSound") == False and pg.evaluate("document.querySelector('#bgA').muted"))
+    pg.click("#chkBgSound")
+    pg.wait_for_timeout(200)
+    check("bg sound toggle unmutes bg videos",
+          pg.evaluate("S.bgSound") == True and not pg.evaluate("document.querySelector('#bgA').muted")
+          and not pg.evaluate("document.querySelector('#bgB').muted"))
+    pg.click("#chkBgSound")
+    check("bg sound toggle re-mutes",
+          pg.evaluate("document.querySelector('#bgA').muted"))
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
 
@@ -222,7 +268,24 @@ with sync_playwright() as p:
     check("pause works", pg.evaluate("document.querySelector('#plAudio').paused"))
     pg.eval_on_selector("#plList li .rm", "el => el.click()")
     pg.wait_for_timeout(300)
-    check("remove track", "kosong" in pg.eval_on_selector("#plList", "el => el.textContent"))
+    check("remove track", "empty" in pg.eval_on_selector("#plList", "el => el.textContent"))
+
+    # --- playlist import: YouTube + YouTube Music playlist links ---
+    check("parseMedia: playlist?list=",
+          pg.evaluate("parseMedia('https://www.youtube.com/playlist?list=PLabc123xyz').type") == "ytplaylist")
+    check("parseMedia: music.youtube.com playlist",
+          pg.evaluate("parseMedia('https://music.youtube.com/playlist?list=PLabc123xyz').type") == "ytplaylist")
+    check("parseMedia: watch+list imports whole list",
+          pg.evaluate("parseMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLabc123xyz').type") == "ytplaylist")
+    check("parseMedia: plain watch stays single video",
+          pg.evaluate("parseMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ').type") == "youtube")
+    pg.fill("#plUrl", "https://www.youtube.com/playlist?list=PLtest999")
+    pg.click("#plAdd")
+    pg.wait_for_timeout(2500)
+    pl = pg.evaluate("S.playlist[S.playlist.length - 1]")
+    check("playlist link imported as ytplaylist track",
+          pl["type"] == "ytplaylist" and pl["listId"] == "PLtest999", str(pl))
+    check("imported playlist listed", pg.eval_on_selector_all("#plList li", "els => els.length") == 1)
 
     # --- Bagikan Vibe: hash round-trip, session-only, keep persists ---
     pg.evaluate("""localStorage.setItem('pomodoro:v3', JSON.stringify(Object.assign(
