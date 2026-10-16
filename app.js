@@ -540,23 +540,13 @@ function ensureFont(styleId) {
   link.href = st.font;
   document.head.appendChild(link);
 }
-/* clock style dropdown (render only; change handler is bound once in initSettings) */
+/* clock style dropdown */
 function renderClockSelect() {
-  const sel = $('#clockSelect');
-  if (!sel) return;
-  sel.innerHTML = '';
-  CLOCK_STYLES.forEach(st => {
-    const o = document.createElement('option');
-    o.value = st.id;
-    o.textContent = st.name;
-    sel.appendChild(o);
-  });
-  syncClockSelect();
+  const items = CLOCK_STYLES.map(s => ({ value: s.id, label: s.name }));
+  if (!clockDD) clockDD = buildDropdown('#clockSelectWrap', items, () => S.clockStyle, (v) => setClockStyle(v));
+  else clockDD.paint();
 }
-function syncClockSelect() {
-  const sel = $('#clockSelect');
-  if (sel) sel.value = S.clockStyle;
-}
+function syncClockSelect() { if (clockDD) clockDD.paint(); }
 function setClockStyle(style) {
   if (!CLOCK_IDS.includes(style)) style = 'air';
   S.clockStyle = style; save();
@@ -756,26 +746,88 @@ function initVisibilitySaver() {
   });
 }
 
-/* background preset dropdown (render only; change handler is bound once in initSettings) */
-function renderBgSelect() {
-  const sel = $('#bgSelect');
-  if (!sel) return;
-  sel.innerHTML = '';
-  BG_PRESETS.forEach(p => {
-    const o = document.createElement('option');
-    o.value = p.id;
-    o.textContent = p.name;
-    sel.appendChild(o);
-  });
-  const c = document.createElement('option');
-  c.value = 'custom';
-  c.textContent = 'Custom URL…';
-  sel.appendChild(c);
-  sel.value = S.bgCustom ? 'custom' : S.bgId;
+/* ---------- custom glass dropdowns (no white OS menu) ----------
+   Button + option list portaled to <body> as position:fixed, so the settings
+   panel's own scroll never clips it and the OS never paints a white menu. */
+const CHEV_SVG = '<svg class="dd-chev" width="10" height="6" viewBox="0 0 10 6" fill="none">'
+  + '<path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+function closeAllDropdowns() {
+  let any = false;
+  document.querySelectorAll('.dd-list:not(.hidden)').forEach(l => { l.classList.add('hidden'); any = true; });
+  document.querySelectorAll('.dd-btn[aria-expanded="true"]')
+    .forEach(b => b.setAttribute('aria-expanded', 'false'));
+  return any;
 }
-function onBgSelectChange() {
-  const sel = $('#bgSelect');
-  const id = sel.value;
+
+function buildDropdown(wrapSel, items, current, onPick) {
+  const wrap = $(wrapSel);
+  wrap.innerHTML = '';
+  wrap.className = 'dd';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'dd-btn glass-select';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  const val = document.createElement('span');
+  val.className = 'dd-val';
+  btn.append(val);
+  btn.insertAdjacentHTML('beforeend', CHEV_SVG);
+  const list = document.createElement('ul');
+  list.className = 'dd-list glass hidden';
+  list.setAttribute('role', 'listbox');
+  list.dataset.dd = wrapSel;
+  const paint = () => {
+    const cur = current();
+    val.textContent = (items.find(i => i.value === cur) || { label: '' }).label;
+    [...list.children].forEach(li => {
+      const sel = li.dataset.value === cur;
+      li.setAttribute('aria-selected', String(sel));
+      li.classList.toggle('sel', sel);
+    });
+  };
+  items.forEach(it => {
+    const li = document.createElement('li');
+    li.setAttribute('role', 'option');
+    li.dataset.value = it.value;
+    li.textContent = it.label;
+    li.addEventListener('click', () => { closeAllDropdowns(); onPick(it.value); });
+    list.appendChild(li);
+  });
+  document.body.appendChild(list); // portal out of the scrolling panel
+  const open = () => {
+    closeAllDropdowns();
+    const r = btn.getBoundingClientRect();
+    list.style.minWidth = r.width + 'px';
+    list.style.left = Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)) + 'px';
+    list.classList.remove('hidden');
+    const h = list.offsetHeight;
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    list.style.top = top + 'px';
+    btn.setAttribute('aria-expanded', 'true');
+  };
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (btn.getAttribute('aria-expanded') === 'true') closeAllDropdowns();
+    else open();
+  });
+  document.addEventListener('click', (e) => { if (!list.contains(e.target)) closeAllDropdowns(); });
+  window.addEventListener('resize', closeAllDropdowns);
+  window.addEventListener('scroll', () => closeAllDropdowns(), true);
+  wrap.appendChild(btn);
+  paint();
+  return { paint };
+}
+
+let bgDD = null, clockDD = null;
+function renderBgSelect() {
+  const items = BG_PRESETS.map(p => ({ value: p.id, label: p.name }));
+  items.push({ value: 'custom', label: 'Custom URL…' });
+  if (!bgDD) bgDD = buildDropdown('#bgSelectWrap', items, () => S.bgCustom ? 'custom' : S.bgId, onBgSelectPick);
+  else bgDD.paint();
+}
+function onBgSelectPick(id) {
   if (id === 'custom') {
     if (!S.bgCustom) {
       toast('Paste a custom video URL below first.');
@@ -788,6 +840,7 @@ function onBgSelectChange() {
   }
   S.bgId = id; S.bgCustom = ''; $('#customBgUrl').value = ''; save();
   applyBackground();
+  renderBgSelect();
   toast(`Background: ${BG_PRESETS.find(p => p.id === id).name}`);
 }
 
@@ -823,7 +876,7 @@ function toggleHeningForce() {
 }
 function initShortcuts() {
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { if (settingsToggle) settingsToggle(false); return; }
+    if (e.key === 'Escape') { if (closeAllDropdowns()) return; if (settingsToggle) settingsToggle(false); return; }
     const tag = (e.target && e.target.tagName) || '';
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -979,10 +1032,13 @@ function toggleMute() {
   try { if (ytPlayer) { scMuted ? ytPlayer.mute() : ytPlayer.unMute(); } } catch {}
   toast(scMuted ? 'Sound muted.' : 'Sound on.');
 }
+/* webkit track fill: paint the filled portion via --fill */
+function paintRangeFill(el) { el.style.setProperty('--fill', (el.value || 0) + '%'); }
 function applySoundscapeLevels() {
   const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slGamma', 'gamma']];
   binds.forEach(([sel, kind]) => {
     $(sel).value = S.soundscape[kind] || 0;
+    paintRangeFill($(sel));
     const level = (S.soundscape[kind] || 0) / 100;
     try {
       if (level > 0) scEnsure();
@@ -994,7 +1050,7 @@ function initSoundscape() {
   applySoundscapeLevels();
   const binds = [['#slPink', 'pink'], ['#slBrown', 'brown'], ['#slGamma', 'gamma']];
   binds.forEach(([sel, kind]) => {
-    $(sel).addEventListener('input', (e) => scSet(kind, e.target.value / 100));
+    $(sel).addEventListener('input', (e) => { paintRangeFill(e.target); scSet(kind, e.target.value / 100); });
   });
 }
 
@@ -1257,7 +1313,6 @@ function initSettings() {
   // no inner close button: the hamburger outside morphs into ✕
 
   renderBgSelect();
-  $('#bgSelect').addEventListener('change', onBgSelectChange);
   if (S.bgCustom) $('#customBgUrl').value = S.bgCustom;
   $('#applyBgUrl').addEventListener('click', () => {
     const url = $('#customBgUrl').value.trim();
@@ -1278,7 +1333,6 @@ function initSettings() {
   });
 
   renderClockSelect();
-  $('#clockSelect').addEventListener('change', (e) => setClockStyle(e.target.value));
   $('#resetClockPos').addEventListener('click', resetClockPos);
   $('#vibeBtn').addEventListener('click', shareVibe);
 

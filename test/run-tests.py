@@ -96,17 +96,35 @@ with sync_playwright() as p:
     pg.wait_for_timeout(400)
     check("no inner close button (single X via hamburger)",
           pg.eval_on_selector_all("#settingsClose", "els => els.length") == 0)
+    check("no native selects left (custom glass dropdowns)",
+          pg.eval_on_selector_all("select", "els => els.length") == 0)
     check("bg dropdown: 5 presets + custom",
-          pg.eval_on_selector_all("#bgSelect option", "els => els.length") == 6)
+          pg.eval_on_selector_all(".dd-list[data-dd='#bgSelectWrap'] li", "els => els.length") == 6)
     check("clock dropdown: 12 styles",
-          pg.eval_on_selector_all("#clockSelect option", "els => els.length") == 12)
+          pg.eval_on_selector_all(".dd-list[data-dd='#clockSelectWrap'] li", "els => els.length") == 12)
     check("html lang is en", pg.evaluate("document.documentElement.lang") == "en")
+
+    def pick(wrap, value):
+        pg.click(f"{wrap} .dd-btn")
+        pg.wait_for_timeout(250)
+        pg.click(f".dd-list[data-dd='{wrap}'] li[data-value='{value}']")
+        pg.wait_for_timeout(250)
+
+    # dropdown list renders glassy (not white OS menu)
+    pg.click("#clockSelectWrap .dd-btn")
+    pg.wait_for_timeout(300)
+    check("dropdown list opens", pg.is_visible(".dd-list[data-dd='#clockSelectWrap']"))
+    bg = pg.eval_on_selector(".dd-list[data-dd='#clockSelectWrap']", "el => getComputedStyle(el).backgroundColor")
+    check("dropdown list is glassy, not white", "255, 255, 255, 1)" not in bg.replace(" ", ""), bg)
+    pg.keyboard.press("Escape")
+    pg.wait_for_timeout(200)
+    check("Escape closes dropdown", not pg.is_visible(".dd-list[data-dd='#clockSelectWrap']"))
+
     for sid in ["air", "kyoto", "kawat"]:
-        pg.select_option("#clockSelect", sid)
-        pg.wait_for_timeout(150)
+        pick("#clockSelectWrap", sid)
         ds = pg.eval_on_selector("#clockCard", "el => el.dataset.clockStyle")
         check(f"style {sid} applies", ds == sid and pg.evaluate("S.clockStyle") == sid, ds)
-    pg.select_option("#clockSelect", "zen")
+    pick("#clockSelectWrap", "zen")
     pg.wait_for_timeout(200)
     check("zen stacked: colon hidden",
           pg.eval_on_selector("#clockCard .time-display .colon", "el => getComputedStyle(el).display") == "none")
@@ -114,13 +132,13 @@ with sync_playwright() as p:
         "link[href*='fonts.googleapis.com']", "els => els.length") >= 1)
 
     # --- photo fallback per preset ---
-    pg.select_option("#bgSelect", "hutan-hujan")
-    pg.wait_for_timeout(300)
+    pick("#bgSelectWrap", "hutan-hujan")
     check("photo fallback shows for preset",
           pg.eval_on_selector("#bgPhoto", "el => el.classList.contains('on')"))
     check("photo src is the preset poster",
           "posters/hutan-hujan.jpg" in pg.eval_on_selector("#bgPhoto", "el => el.src"))
-    check("select reflects preset", pg.eval_on_selector("#bgSelect", "el => el.value") == "hutan-hujan")
+    check("dropdown reflects preset",
+          pg.eval_on_selector("#bgSelectWrap .dd-val", "el => el.textContent") == "Rainforest")
 
     # --- steppers (real clicks, no native spinners) ---
     check("no number inputs left", pg.eval_on_selector_all("input[type=number]", "els => els.length") == 0)
@@ -151,6 +169,23 @@ with sync_playwright() as p:
     pg.click("#chkBgSound")
     check("bg sound toggle re-mutes",
           pg.evaluate("document.querySelector('#bgA').muted"))
+
+    # --- custom checkbox / slider / leaf-green accent ---
+    check("accent is leaf green",
+          pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#4ade80")
+    check("checkbox is custom-styled",
+          pg.eval_on_selector("#chkAuto", "el => getComputedStyle(el).borderRadius") == "6px"
+          and pg.eval_on_selector("#chkAuto", "el => getComputedStyle(el).appearance") == "none")
+    chk_bg = pg.eval_on_selector("#chkAuto", "el => getComputedStyle(el).backgroundColor")
+    check("checked checkbox glows leaf green", "74, 222, 128" in chk_bg, chk_bg)
+    pg.evaluate("document.querySelector('#slPink').value = 40; paintRangeFill(document.querySelector('#slPink'));")
+    check("slider fill var paints",
+          pg.eval_on_selector("#slPink", "el => el.style.getPropertyValue('--fill')") == "40%")
+    thumb_h = pg.eval_on_selector("#slPink", """el => {
+      const cs = getComputedStyle(el);
+      return cs.getPropertyValue('-webkit-appearance') || cs.appearance;
+    }""")
+    check("slider uses custom track", thumb_h != "", thumb_h)
     pg.keyboard.press("Escape")
     pg.wait_for_timeout(300)
 

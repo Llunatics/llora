@@ -12,7 +12,7 @@
   --ambient: transparent; /* set from video frame sampling */
   --text: #f5f7fa;
   --text-dim: rgba(245, 247, 250, 0.62);
-  --accent: #7dd3fc;
+  --accent: #4ade80; /* bright leaf green */
   --radius: 18px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
@@ -65,7 +65,7 @@ body {
 .glass-btn.small { padding: 5px 10px; font-size: 12px; border-radius: 11px; }
 .glass-btn.wide { width: 100%; margin-top: 6px; }
 .glass-btn.danger { border-color: rgba(255, 120, 120, 0.45); color: #ffc9c9; }
-.glass-btn.active { background: rgba(125, 211, 252, 0.20); border-color: rgba(125, 211, 252, 0.45); }
+.glass-btn.active { background: rgba(74, 222, 128, 0.20); border-color: rgba(74, 222, 128, 0.45); }
 
 .icon { width: 18px; height: 18px; fill: currentColor; }
 .hidden { display: none !important; }
@@ -371,28 +371,47 @@ body.hening .chrome-fade { opacity: 0; pointer-events: none; }
 .set-group:last-child { margin-bottom: 2px; }
 .set-group h3 { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 600; }
 
-/* glass dropdown */
+/* glass dropdown button (shared look with the old native select) */
 .glass-select {
   width: 100%;
   font-family: var(--font);
   font-size: 13px;
   color: var(--text);
   background-color: rgba(255, 255, 255, 0.07);
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23f5f7fa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
   border: 1px solid var(--glass-border);
   border-radius: 11px;
-  padding: 9px 30px 9px 12px;
+  padding: 9px 12px;
   outline: none;
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
   margin-bottom: 4px;
 }
 .glass-select:hover { background-color: rgba(255, 255, 255, 0.12); }
-.glass-select:focus { border-color: var(--accent); }
-.glass-select option { background: #141a26; color: #f5f7fa; }
+.glass-select:focus-visible { border-color: var(--accent); }
+
+/* custom dropdown: button + portaled glass option list (no white OS menu) */
+.dd { position: relative; margin-bottom: 4px; }
+.dd-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 0;
+}
+.dd-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-chev { flex: none; transition: transform .2s ease; opacity: 0.7; }
+.dd-btn[aria-expanded="true"] .dd-chev { transform: rotate(180deg); }
+.dd-list {
+  position: fixed; z-index: 100;
+  list-style: none; margin: 0; padding: 6px;
+  max-height: 240px; overflow-y: auto;
+  border-radius: 14px;
+}
+.dd-list li {
+  padding: 9px 12px; border-radius: 9px;
+  font-size: 13px; color: var(--text);
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dd-list li + li { margin-top: 2px; }
+.dd-list li:hover { background: rgba(255, 255, 255, 0.10); }
+.dd-list li.sel { background: rgba(74, 222, 128, 0.16); }
+.dd-list li:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .field-label { display: block; font-size: 11px; color: var(--text-dim); margin: 6px 0 5px; }
 .row { display: flex; gap: 6px; }
@@ -448,15 +467,65 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
 }
 
 .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 7px 0; cursor: pointer; }
-.check input { width: 15px; height: 15px; accent-color: var(--accent); }
+/* custom checkbox: glass box, leaf-green fill, dark check */
+.check input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; flex: none; margin: 0;
+  border-radius: 6px;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.07);
+  cursor: pointer; position: relative;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.check input[type="checkbox"]:hover { border-color: rgba(255, 255, 255, 0.55); }
+.check input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.35);
+}
+.check input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute; left: 5px; top: 1.5px;
+  width: 4px; height: 8px;
+  border: solid #0a2e16; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.check input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* soundscape mini sliders */
+/* soundscape mini sliders — custom leaf-green styling */
 .slider-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   font-size: 12px; color: var(--text-dim); margin: 6px 0;
 }
 .slider-row input[type="range"] {
-  width: 130px; accent-color: var(--accent); cursor: pointer;
+  width: 130px;
+  -webkit-appearance: none; appearance: none;
+  height: 4px; border-radius: 99px;
+  background: linear-gradient(to right,
+    var(--accent) 0%, var(--accent) var(--fill, 0%),
+    rgba(255, 255, 255, 0.16) var(--fill, 0%));
+  outline: none; cursor: pointer;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: #f5f7fa;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.45);
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.slider-row input[type="range"]::-moz-range-thumb {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #f5f7fa; border: 2px solid var(--accent);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.45); cursor: pointer;
+}
+.slider-row input[type="range"]::-moz-range-track {
+  height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.16);
+}
+.slider-row input[type="range"]::-moz-range-progress {
+  height: 4px; border-radius: 99px; background: var(--accent);
 }
 
 /* ---------- Playlist FAB (bottom-left, 44px) ---------- */
