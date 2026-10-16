@@ -609,7 +609,7 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
 
 /* hidden media engines — never visible */
 #plVideo, #plAudio { display: none; }
-#ytHidden { position: fixed; width: 1px; height: 1px; left: -2px; top: -2px; opacity: 0.01; pointer-events: none; overflow: hidden; }
+#ytHidden, #ytImporter { position: fixed; width: 1px; height: 1px; left: -2px; top: -2px; opacity: 0.01; pointer-events: none; overflow: hidden; }
 
 /* ---------- Toast ---------- */
 .toast {

@@ -43,7 +43,7 @@ Llora is a focus timer that feels like a quiet place, not a productivity tool. A
 
 **Playlist**
 - Titles-only panel — no YouTube chrome, ever. Hidden native audio and 1×1 YouTube players, auto-advance, graceful handling of embed-disabled videos.
-- Import whole YouTube / YouTube Music playlists from a `list=` link; Media Session API gives lock-screen controls.
+- Paste a YouTube / YouTube Music playlist link to import every video as its own track — titles fill in automatically; Media Session API gives lock-screen controls.
 
 **Sharing**
 - **Share Vibe** — one click copies a link encoding your exact setup (background, clock style + position, soundscape, durations, current track). Recipients preview it in a session-only sandbox; "Keep it as mine" adopts it.

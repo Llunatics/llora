@@ -415,17 +415,37 @@ with sync_playwright() as p:
           pg.evaluate("parseMedia('https://www.youtube.com/playlist?list=PLabc123xyz').type") == "ytplaylist")
     check("parseMedia: music.youtube.com playlist",
           pg.evaluate("parseMedia('https://music.youtube.com/playlist?list=PLabc123xyz').type") == "ytplaylist")
-    check("parseMedia: watch+list imports whole list",
-          pg.evaluate("parseMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLabc123xyz').type") == "ytplaylist")
+    check("parseMedia: watch+list adds just the video",
+          pg.evaluate("parseMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLabc123xyz').type") == "youtube")
     check("parseMedia: plain watch stays single video",
           pg.evaluate("parseMedia('https://www.youtube.com/watch?v=dQw4w9WgXcQ').type") == "youtube")
+    # stub the YouTube read + title fetch (no real YouTube in headless CI)
+    pg.evaluate("""() => {
+      window.__realImport = ytImportIds;
+      window.__realPlTitle = fetchYtPlaylistTitle;
+      window.__realTitle = fetchYtTitle;
+      ytImportIds = async () => ['vidAAA11111', 'vidBBB22222', 'vidCCC33333'];
+      fetchYtPlaylistTitle = async () => 'Stubbed Mix';
+      fetchYtTitle = async (id) => 'Song ' + id.slice(3, 6);
+    }""")
+    n0 = pg.evaluate("S.playlist.length")
     pg.fill("#plUrl", "https://www.youtube.com/playlist?list=PLtest999")
     pg.click("#plAdd")
-    pg.wait_for_timeout(2500)
-    pl = pg.evaluate("S.playlist[S.playlist.length - 1]")
-    check("playlist link imported as ytplaylist track",
-          pl["type"] == "ytplaylist" and pl["listId"] == "PLtest999", str(pl))
-    check("imported playlist listed", pg.eval_on_selector_all("#plList li", "els => els.length") == 1)
+    pg.wait_for_timeout(4000)
+    added = pg.evaluate(f"S.playlist.slice({n0})")
+    check("playlist expands into individual tracks",
+          len(added) == 3 and all(t["type"] == "youtube" for t in added)
+          and [t["ytId"] for t in added] == ["vidAAA11111", "vidBBB22222", "vidCCC33333"], str(added))
+    check("imported titles fill in",
+          [t["title"] for t in added] == ["Song AAA", "Song BBB", "Song CCC"],
+          str([t["title"] for t in added]))
+    check("imported tracks listed",
+          pg.eval_on_selector_all("#plList li", "els => els.length") >= 3)
+    pg.evaluate("""() => {
+      ytImportIds = window.__realImport;
+      fetchYtPlaylistTitle = window.__realPlTitle;
+      fetchYtTitle = window.__realTitle;
+    }""")
 
     # --- Bagikan Vibe: hash round-trip, session-only, keep persists ---
     pg.evaluate("""localStorage.setItem('pomodoro:v3', JSON.stringify(Object.assign(

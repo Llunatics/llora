@@ -1131,10 +1131,12 @@ const YT_RE = /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([\
 const YT_LIST_RE = /[?&]list=([\w-]{2,})/;
 
 function parseMedia(url) {
-  const lm = url.match(YT_LIST_RE);
-  if (lm) return { type: 'ytplaylist', id: lm[1] };
+  // a bare playlist link (no v=) means "import the whole list";
+  // a watch link that merely carries list= is just the single video
   const m = url.match(YT_RE);
   if (m) return { type: 'youtube', id: m[1] };
+  const lm = url.match(YT_LIST_RE);
+  if (lm) return { type: 'ytplaylist', id: lm[1] };
   if (/\.(mp3|wav|ogg|opus|m4a)(\?|#|$)/i.test(url)) return { type: 'audio' };
   if (/\.(mp4|webm)(\?|#|$)/i.test(url)) return { type: 'video' };
   return { type: 'unknown' };
@@ -1158,6 +1160,80 @@ async function fetchYtPlaylistTitle(listId) {
   return 'YouTube Playlist';
 }
 
+/* Read a playlist's video IDs through a throwaway hidden IFrame player:
+   cuePlaylist() loads the list natively, then getPlaylist() reveals the
+   IDs — no API key, no extra service. Resolves [] on any failure. */
+let ytImportPlayer = null;
+function ytImportIds(listId, timeoutMs = 20000) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (ids) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { if (ytImportPlayer) ytImportPlayer.destroy(); } catch {}
+      ytImportPlayer = null;
+      resolve(Array.isArray(ids) ? ids : []);
+    };
+    const timer = setTimeout(() => finish([]), timeoutMs);
+    try {
+      loadYtApi(() => {
+        if (done) return;
+        try {
+          ytImportPlayer = new YT.Player('ytImportPlayer', {
+            width: '1', height: '1',
+            playerVars: { autoplay: 0, rel: 0, playsinline: 1 },
+            events: {
+              onReady: (e) => {
+                try { e.target.cuePlaylist({ listType: 'playlist', list: listId }); }
+                catch { finish([]); }
+              },
+              onStateChange: (e) => {
+                if (e.data === YT.PlayerState.CUED) {
+                  let ids = [];
+                  try { ids = e.target.getPlaylist() || []; } catch {}
+                  finish(ids);
+                }
+              },
+              onError: () => finish([]),
+            },
+          });
+        } catch { finish([]); }
+      });
+    } catch { finish([]); }
+  });
+}
+
+/* Expand a pasted YouTube / YouTube Music playlist into individual tracks.
+   IDs come from the hidden player; titles fill in behind via noembed. */
+async function importYtPlaylist(listId) {
+  toast('Importing playlist…');
+  const [plTitle, ids] = await Promise.all([fetchYtPlaylistTitle(listId), ytImportIds(listId)]);
+  if (!ids.length) {
+    toast('Could not read that playlist. Is it public?');
+    return false;
+  }
+  const base = S.playlist.length;
+  const fresh = ids.map((vid, i) => ({
+    id: Date.now().toString(36) + '-' + i,
+    title: `Track ${base + i + 1}`,
+    url: `https://www.youtube.com/watch?v=${vid}`,
+    type: 'youtube', ytId: vid, listId: null,
+  }));
+  S.playlist.push(...fresh);
+  save(); renderPlaylist();
+  toast(`Imported ${fresh.length} tracks from “${plTitle.slice(0, 32)}”.`);
+  // fill real titles in the background, a few at a time
+  for (let i = 0; i < fresh.length; i += 6) {
+    await Promise.all(fresh.slice(i, i + 6).map(async (t) => {
+      const name = await fetchYtTitle(t.ytId);
+      if (name && name !== 'YouTube video') t.title = name;
+    }));
+    save(); renderPlaylist();
+  }
+  return true;
+}
+
 async function addTrack(url) {
   url = (url || '').trim();
   const media = parseMedia(url);
@@ -1165,13 +1241,12 @@ async function addTrack(url) {
     toast('Link not recognized. Use a YouTube link or a direct audio/video file.');
     return false;
   }
+  // a pasted playlist expands into its individual videos
+  if (media.type === 'ytplaylist') return importYtPlaylist(media.id);
   let title = `Track ${S.playlist.length + 1}`;
   if (media.type === 'youtube') {
     toast('Fetching title…');
     title = await fetchYtTitle(media.id);
-  } else if (media.type === 'ytplaylist') {
-    toast('Importing playlist…');
-    title = await fetchYtPlaylistTitle(media.id);
   } else {
     try {
       const u = new URL(url);
