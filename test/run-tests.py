@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Real click tests for pomodoro-timer v3.5 (Playwright + headless Chromium)."""
-import http.server, threading, functools, sys, os
+import http.server, threading, functools, sys, os, re
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -615,8 +615,32 @@ with sync_playwright() as p:
     pg2.evaluate("() => document.querySelector('#plFab').click()")
     pg2.wait_for_timeout(400)
     bg = pg2.evaluate("() => getComputedStyle(document.querySelector('.pl-list li.playing')).backgroundColor")
-    check("playing track is green-tinted", "46, 229, 125" in bg, bg)
+    check("playing track is green-tinted",
+          "46, 229, 125" in bg or "0.180392 0.898039 0.490196" in bg, bg)
     pg2.close()
+
+    # --- dynamic accent follows the background ---
+    pg3 = b.new_page(viewport={"width": 1280, "height": 900})
+    pg3.goto(f"http://127.0.0.1:{PORT}/index.html")
+    pg3.wait_for_timeout(1000)
+    # pure color math: vivid in -> vivid out, muddy in -> default leaf green
+    cases = [
+        ((40, 80, 220), "#2b56ee"),    # blue video -> blue accent
+        ((230, 120, 50), "#ee772b"),   # sunset -> vivid orange
+        ((128, 128, 128), "#2ee57d"),  # gray -> default green
+        ((5, 5, 8), "#2ee57d"),        # near-black -> default green
+        ((250, 250, 250), "#2ee57d"),  # near-white -> default green
+        ((20, 80, 45), "#2bee7c"),     # forest -> vivid green
+    ]
+    for (r, g, b_), want in cases:
+        got = pg3.evaluate(f"accentHex(accentFromRgb({r}, {g}, {b_}))")
+        check(f"accent math rgb({r},{g},{b_})", got == want, got)
+    # live: blue mp4 background pushes a blue accent through the sampler
+    pg3.evaluate(f"() => {{ S.bgCustom = 'http://127.0.0.1:{PORT}/test-bg.mp4'; S.bgId = 'custom'; save(); switchBackground(); }}")
+    pg3.wait_for_timeout(6000)
+    acc = pg3.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()")
+    check("sampler sets --accent to a hex color", bool(re.match(r'^#[0-9a-f]{6}$', acc)), acc)
+    pg3.close()
 
     # --- screenshots (review only: never into assets/, the README hero is hand-picked) ---
     shot_dir = os.path.join(ROOT, "test", "shots")

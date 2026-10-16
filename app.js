@@ -730,6 +730,7 @@ function wireVideoCommon(v) {
 function showYouTubeBg(ytId) {
   bgYtActive = true;
   stopTintSampler();
+  resetAccent(); // cross-origin iframe: can't sample, back to default green
   document.documentElement.style.setProperty('--ambient', NEUTRAL_TINT);
   [bgFront, bgBack].forEach(v => { if (v) { v.classList.remove('on'); v.pause(); } });
   setBgPhoto(''); // custom bg: gradient behind the iframe
@@ -793,7 +794,47 @@ function switchBackground() {
 
 function applyBackground() { switchBackground(); }
 
-/* adaptive glass tint: sample video frame -> --ambient */
+/* adaptive glass tint: sample video frame -> --ambient.
+   The same sample drives a DYNAMIC ACCENT: the UI's accent color follows
+   the background video's dominant hue (saturation boosted, lightness kept
+   readable). Near-gray / near-black / near-white frames fall back to the
+   default leaf green so the UI never turns muddy. */
+const ACCENT_RGB_DEFAULT = [46, 229, 125];
+let accentCur = null; // lerped [r,g,b]; null = snap to target on next sample
+const accentHex = (c) => '#' + c.map(v =>
+  Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+function accentFromRgb(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  const l = (max + min) / 2;
+  if (d < 0.09 || l < 0.06 || l > 0.94) return ACCENT_RGB_DEFAULT.slice();
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  const rawS = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const s = Math.min(0.85, Math.max(0.55, rawS * 1.5));
+  const L = Math.min(0.68, Math.max(0.55, l < 0.5 ? l + 0.25 : l));
+  const q = L < 0.5 ? L * (1 + s) : L + s - L * s;
+  const p = 2 * L - q;
+  const tc = [h + 1 / 3, h, h - 1 / 3].map(t => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  });
+  return tc.map(v => Math.round(v * 255));
+}
+function pushAccent(r, g, b) {
+  const t = accentFromRgb(r, g, b);
+  accentCur = accentCur ? accentCur.map((c, i) => c + (t[i] - c) * 0.5) : t.slice();
+  document.documentElement.style.setProperty('--accent', accentHex(accentCur));
+}
+function resetAccent() {
+  accentCur = null;
+  document.documentElement.style.setProperty('--accent', accentHex(ACCENT_RGB_DEFAULT));
+}
 function stopTintSampler() {
   if (tintTimer) { clearInterval(tintTimer); tintTimer = null; }
 }
@@ -812,9 +853,11 @@ function startTintSampler() {
       const n = d.length / 4;
       r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
       document.documentElement.style.setProperty('--ambient', `rgba(${r},${g},${b},0.10)`);
+      pushAccent(r, g, b);
     } catch {
       // tainted canvas (custom URL without CORS) — neutral tint, sampler off
       document.documentElement.style.setProperty('--ambient', NEUTRAL_TINT);
+      resetAccent();
       tintOK = false;
       stopTintSampler();
     }
