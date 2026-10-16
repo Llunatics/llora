@@ -374,14 +374,16 @@ with sync_playwright() as p:
     bad = pg.evaluate("decodeVibe(btoa(JSON.stringify({vu: 'javascript:alert(1)', tu: 'data:text/html,x'})))")
     check("xss guard rejects non-https", bad.get("vu") is None and bad.get("tu") is None, str(bad))
 
-    # --- screenshots ---
+    # --- screenshots (review only: never into assets/, the README hero is hand-picked) ---
+    shot_dir = os.path.join(ROOT, "test", "shots")
+    os.makedirs(shot_dir, exist_ok=True)
     pg.set_viewport_size({"width": 390, "height": 844})
     pg.wait_for_timeout(800)
-    pg.screenshot(path=os.path.join(ROOT, "assets", "screenshot-mobile.png"))
+    pg.screenshot(path=os.path.join(shot_dir, "screenshot-mobile.png"))
     pg.set_viewport_size({"width": 1440, "height": 900})
     pg.wait_for_timeout(800)
-    pg.screenshot(path=os.path.join(ROOT, "assets", "screenshot-desktop.png"))
-    check("screenshots saved", os.path.exists(os.path.join(ROOT, "assets", "screenshot-mobile.png")))
+    pg.screenshot(path=os.path.join(shot_dir, "screenshot-desktop.png"))
+    check("screenshots saved", os.path.exists(os.path.join(shot_dir, "screenshot-mobile.png")))
     b.close()
 
 print(f"\n{passed} passed, {failed} failed, {len(errors)} page errors")
