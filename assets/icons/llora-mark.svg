@@ -1,43 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!--
-    LLORA MARK — "the open circle"
-    · The ring: a focus cycle, a day, a breath — whole but never closed.
-      Its opening at the top-right is wabi-sabi: there is always room to grow.
-    · The leaf-l: flora. The lowercase l IS a leaf standing tall — its vein
-      the stem, its body the growth. The capital L grounds it like soil.
-      Focus is not forced; it is cultivated. Flora + aura.
+    LLORA MARK — "one leaf, two sides"
+    A single leaf split along its midrib: one half sunlit, one half in shade.
+    Like a leaf needs both sun and shade to grow, focus needs both work and rest —
+    the pomodoro rhythm, encoded in a leaf. The dewdrop is clarity condensing
+    in stillness: it forms in the quiet of night and catches the morning sun.
   -->
   <defs>
-    <radialGradient id="glow" cx="50%" cy="42%" r="55%">
-      <stop offset="0" stop-color="#2EE57D" stop-opacity="0.18"/>
+    <radialGradient id="glow" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#2EE57D" stop-opacity="0.15"/>
       <stop offset="1" stop-color="#2EE57D" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="leafgrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3CF08A"/>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#46F493"/>
       <stop offset="0.55" stop-color="#2EE57D"/>
-      <stop offset="1" stop-color="#0FA355"/>
+      <stop offset="1" stop-color="#15A75C"/>
     </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14804A"/>
+      <stop offset="0.55" stop-color="#0B4F2E"/>
+      <stop offset="1" stop-color="#06301D"/>
+    </linearGradient>
+    <radialGradient id="dew" cx="35%" cy="30%" r="75%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="0.6" stop-color="#D8F9E5" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#A8EAC6" stop-opacity="0.75"/>
+    </radialGradient>
   </defs>
 
-  <!-- deep forest ground -->
   <rect x="0" y="0" width="512" height="512" rx="116" fill="#0D1F17"/>
-  <ellipse cx="256" cy="240" rx="195" ry="180" fill="url(#glow)"/>
+  <ellipse cx="256" cy="260" rx="190" ry="200" fill="url(#glow)"/>
 
-  <!-- open circle: 348° arc, gap centred at top-right (-45°) -->
-  <path d="M 388.1 149.0 A 170 170 0 1 1 363.0 123.9"
-        fill="none" stroke="#E0F9EB" stroke-width="15"
-        stroke-linecap="round" opacity="0.85"/>
+  <!-- sunlit half -->
+  <path d="M 256 90 C 176 165, 160 275, 256 412 C 238 305, 274 195, 256 90 Z"
+        fill="url(#sun)"/>
+  <!-- shaded half -->
+  <path d="M 256 90 C 336 165, 352 275, 256 412 C 238 305, 274 195, 256 90 Z"
+        fill="url(#shade)"/>
 
-  <!-- the capital L: the soil, the ground -->
-  <path d="M 175 155 L 175 350 L 245 350"
-        fill="none" stroke="url(#leafgrad)" stroke-width="42"
-        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- rim light: morning catching the leaf's edge -->
+  <path d="M 256 90 C 176 165, 160 275, 256 412"
+        fill="none" stroke="#C9F7DE" stroke-width="6"
+        stroke-linecap="round" opacity="0.5"/>
 
-  <!-- the lowercase l: a leaf standing tall, vein as its stem -->
-  <g transform="rotate(10 305 250)">
-    <path d="M 305 150 C 342 210, 342 292, 305 350 C 268 292, 268 210, 305 150 Z"
-          fill="url(#leafgrad)"/>
-    <path d="M 305 178 L 305 322" fill="none"
-          stroke="#0B3D24" stroke-width="7" stroke-linecap="round" opacity="0.45"/>
+  <!-- side veins -->
+  <g fill="none" stroke-linecap="round" stroke-width="3.5">
+    <g stroke="#052E1C" opacity="0.4">
+      <path d="M 264 180 C 235 188, 210 202, 194 224"/>
+      <path d="M 258 255 C 228 262, 203 276, 189 298"/>
+      <path d="M 254 330 C 228 336, 208 348, 206 362"/>
+    </g>
+    <g stroke="#DFFBEA" opacity="0.3">
+      <path d="M 264 180 C 293 188, 316 202, 330 224"/>
+      <path d="M 258 255 C 288 262, 311 276, 324 298"/>
+      <path d="M 254 330 C 280 336, 300 348, 306 362"/>
+    </g>
   </g>
+
+  <!-- the midrib: the line between effort and ease -->
+  <path d="M 256 90 C 274 195, 238 305, 256 412"
+        fill="none" stroke="#0A3D24" stroke-width="4.5"
+        stroke-linecap="round" opacity="0.65"/>
+
+  <!-- dewdrop: clarity condensing in stillness -->
+  <circle cx="226" cy="190" r="15" fill="url(#dew)"/>
+  <circle cx="221" cy="184" r="4.5" fill="#FFFFFF" opacity="0.95"/>
+
+  <!-- stem -->
+  <path d="M 256 410 C 256 430, 248 444, 234 456"
+        fill="none" stroke="#1EBF68" stroke-width="12" stroke-linecap="round"/>
 </svg>
