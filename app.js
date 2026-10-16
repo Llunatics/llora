@@ -1,5 +1,5 @@
 /* ============================================================
-   Pomodoro — focus timer, liquid glass edition v4
+   Llora — focus timer, liquid glass edition v4
    Vanilla JS, no frameworks. State persisted in localStorage.
    - Date.now()-delta timer (no drift), 250ms tick
    - Double-buffered video backgrounds + adaptive glass tint
@@ -10,7 +10,7 @@
    ============================================================ */
 'use strict';
 
-const STORE_KEY = 'pomodoro:v3';
+const STORE_KEY = 'pomodoro:v3'; // keep the legacy key: renaming wipes users' saved settings
 const LEGACY_KEYS = ['pomodoro:v2', 'pomodoro:v1'];
 const BREATHE_SEC = 15;
 const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/pomodoro-timer@assets/videos/';
@@ -351,8 +351,8 @@ function render() {
     ? `+${mmssPlain(T.overtimeSec || 0)}`
     : mmssPlain(T.remaining);
   document.title = (playing || T.remaining < durSec(T.mode) || T.mode === 'overtime')
-    ? `${titleTime} · Pomodoro`
-    : 'Pomodoro — Focus Timer';
+    ? `${titleTime} · Llora`
+    : 'Llora — Focus Timer';
 }
 
 /* ---------------- sound + notification ---------------- */
@@ -421,7 +421,7 @@ function notifyUser(kind) {
   if (!S.notif || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
   try {
-    new Notification('Pomodoro', {
+    new Notification('Llora', {
       body: kind === 'focus' ? 'Focus session done. Time for a break.' : 'Break over. Back to focus.',
     });
   } catch {}
@@ -1217,7 +1217,7 @@ function playTrack(i) {
 function setMediaSession(t, el) {
   if (!('mediaSession' in navigator)) return;
   try {
-    navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: 'Pomodoro' });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: 'Llora' });
     navigator.mediaSession.setActionHandler('play', () => el.play().catch(() => {}));
     navigator.mediaSession.setActionHandler('pause', () => el.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => stepTrack(-1));
@@ -1382,7 +1382,7 @@ function initSettings() {
   });
 
   $('#clearData').addEventListener('click', () => {
-    if (confirm('Erase all saved Pomodoro data?')) {
+    if (confirm('Erase all saved Llora data?')) {
       localStorage.removeItem(STORE_KEY);
       LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
       location.reload();
