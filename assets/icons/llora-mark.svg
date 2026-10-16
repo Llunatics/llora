@@ -1,47 +1,68 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!--
-    LLORA MARK — "time, grown"
-    A quiet clock ring in olive gold; a single leaf rising from its edge.
-    The 時 (time) rests inside: time is not chased, it is cultivated.
+    LLORA MARK — "the cultivated hour"
+    A cinnabar enso: the circle of a day, brushed in one breath.
+    A leaf caps its opening; 集中 (focus) rests within.
+    Time is not chased — it is cultivated.
   -->
   <defs>
-    <linearGradient id="olive" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#7C6E3F"/>
-      <stop offset="0.55" stop-color="#C8AE5D"/>
-      <stop offset="1" stop-color="#8A7A44"/>
+    <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7F1E3"/>
+      <stop offset="1" stop-color="#EFE7D3"/>
     </linearGradient>
-    <radialGradient id="shdw" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#000000" stop-opacity="0.22"/>
-      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
-    </radialGradient>
   </defs>
 
-  <!-- soft grounding shadow -->
-  <ellipse cx="256" cy="432" rx="132" ry="15" fill="url(#shdw)"/>
+  <!-- cream ground -->
+  <rect x="0" y="0" width="512" height="512" rx="110" fill="url(#cream)"/>
 
-  <!-- clock ring -->
-  <circle cx="256" cy="250" r="150" fill="none" stroke="url(#olive)" stroke-width="5"/>
-  <!-- minute ticks -->
-  <circle cx="256" cy="250" r="132" fill="none" stroke="url(#olive)"
-          stroke-width="6" stroke-dasharray="2.5 11.323" opacity="0.9"/>
-  <!-- cardinal ticks -->
-  <g stroke="url(#olive)" stroke-width="6" stroke-linecap="round">
-    <path d="M 256 108 L 256 128"/>
-    <path d="M 398 250 L 378 250"/>
-    <path d="M 256 392 L 256 372"/>
-    <path d="M 114 250 L 134 250"/>
+  <!-- red minute ticks -->
+  <circle cx="256" cy="268" r="172" fill="none" stroke="#A83A2A"
+          stroke-width="5" stroke-dasharray="3 15.01" opacity="0.75"/>
+
+  <!-- cinnabar enso -->
+  <path d="M 326 147 A 140 140 0 1 0 326 389"
+        fill="none" stroke="#A83A2A" stroke-width="38" stroke-linecap="round"/>
+  <!-- dry-brush texture -->
+  <path d="M 326 147 A 140 140 0 1 0 326 389"
+        fill="none" stroke="#7E2A1E" stroke-width="38" stroke-linecap="round"
+        stroke-dasharray="60 40 25 55 90 35" opacity="0.3"/>
+  <path d="M 326 147 A 140 140 0 1 0 326 389"
+        fill="none" stroke="#C0522F" stroke-width="12" stroke-linecap="round"
+        stroke-dasharray="150 300 80 200" opacity="0.35"/>
+  <!-- tapering tail, flicking along the stroke's tangent -->
+  <path d="M 310 373 L 320 402 L 370 370 Z" fill="#A83A2A"/>
+
+  <!-- the leaf capping the opening -->
+  <g>
+    <path d="M 330 150 Q 346 106 382 72 Q 354 110 330 150 Z" fill="#8A9A5B"/>
+    <path d="M 336 142 Q 354 110 376 80" fill="none"
+          stroke="#5F7046" stroke-width="3" stroke-linecap="round"/>
   </g>
 
-  <!-- the leaf, rising from the clock's edge -->
-  <g fill="none" stroke="url(#olive)" stroke-linecap="round">
-    <path d="M 142 415 C 152 352, 182 302, 216 268" stroke-width="7"/>
-    <path d="M 216 268 C 198 218, 218 168, 260 128 C 252 182, 240 230, 216 268 Z"
-          stroke-width="7" stroke-linejoin="round"/>
-    <path d="M 221 256 C 232 218, 244 176, 256 140" stroke-width="4" opacity="0.85"/>
-  </g>
+  <!-- 集中 — focus -->
+  <text x="352" y="272" text-anchor="middle"
+        font-family="Noto Serif CJK SC, serif" font-weight="bold" font-size="84"
+        fill="#1A1A1A">集</text>
+  <text x="352" y="362" text-anchor="middle"
+        font-family="Noto Serif CJK SC, serif" font-weight="bold" font-size="84"
+        fill="#1A1A1A">中</text>
 
-  <!-- 時 — time -->
-  <text x="322" y="272" text-anchor="middle"
-        font-family="Noto Serif CJK SC, serif" font-weight="bold" font-size="46"
-        fill="url(#olive)">時</text>
+  <!-- LLORA, vertical -->
+  <text x="292" y="238" text-anchor="middle"
+        font-family="Georgia, serif" font-size="19" letter-spacing="2"
+        fill="#1A1A1A">
+    <tspan x="292" dy="0">L</tspan><tspan x="292" dy="24">L</tspan><tspan x="292" dy="24">O</tspan><tspan x="292" dy="24">R</tspan><tspan x="292" dy="24">A</tspan>
+  </text>
+
+  <!-- FOCUS TIMER along the lower inner arc -->
+  <path id="lowarc" d="M 175 350 Q 240 382, 300 360" fill="none"/>
+  <text font-family="Georgia, serif" font-size="15" letter-spacing="1.5" fill="#1A1A1A">
+    <textPath href="#lowarc" startOffset="50%" text-anchor="middle">FOCUS TIMER</textPath>
+  </text>
+
+  <!-- hanko seal -->
+  <rect x="392" y="398" width="46" height="46" rx="7" fill="#A83A2A"/>
+  <text x="415" y="431" text-anchor="middle"
+        font-family="Noto Serif CJK SC, serif" font-weight="bold" font-size="30"
+        fill="#F5F0E1">時</text>
 </svg>
