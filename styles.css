@@ -128,14 +128,18 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
-/* soft dark scrim so thin digits stay readable over bright backgrounds */
+/* soft dark scrim so thin digits stay readable over bright backgrounds.
+   Tunable via sliders: --scrim-a (peak darkness 0..0.8), --scrim-spread (px). */
 .clock-float::before {
   content: "";
   position: absolute;
-  inset: -70px -100px;
+  inset: calc(var(--scrim-spread, 85px) * -1);
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(4, 7, 14, 0.52) 0%, rgba(4, 7, 14, 0.22) 48%, transparent 72%);
+  background: radial-gradient(ellipse at center,
+    rgba(4, 7, 14, var(--scrim-a, 0.55)) 0%,
+    rgba(4, 7, 14, var(--scrim-a2, 0.25)) 48%,
+    transparent 72%);
   filter: blur(10px);
 }
 .clock-float.centered { left: 50%; top: 42%; transform: translate(-50%, -50%); }

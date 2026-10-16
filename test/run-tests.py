@@ -170,6 +170,34 @@ with sync_playwright() as p:
     check("bg sound toggle re-mutes",
           pg.evaluate("document.querySelector('#bgA').muted"))
 
+    # --- scrim sliders (backdrop darkness + spread) ---
+    check("scrim sliders exist",
+          pg.eval_on_selector("#slScrimA", "el => el.type") == "range"
+          and pg.eval_on_selector("#slScrimS", "el => el.type") == "range")
+    check("scrim defaults 55/85",
+          pg.evaluate("S.scrim.a") == 55 and pg.evaluate("S.scrim.spread") == 85)
+    pg.evaluate("""() => {
+      const a = document.querySelector('#slScrimA'), s = document.querySelector('#slScrimS');
+      a.value = 30; s.value = 120;
+      a.dispatchEvent(new Event('input', {bubbles:true}));
+      s.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+    pg.wait_for_timeout(150)
+    check("scrim sliders paint CSS vars",
+          pg.eval_on_selector("#clockCard", "el => el.style.getPropertyValue('--scrim-a')") == "0.30"
+          and pg.eval_on_selector("#clockCard", "el => el.style.getPropertyValue('--scrim-spread')") == "120px"
+          and pg.evaluate("S.scrim.a") == 30 and pg.evaluate("S.scrim.spread") == 120)
+    check("scrim persists in localStorage",
+          pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).scrim.a") == 30)
+    pg.evaluate("""() => {
+      const a = document.querySelector('#slScrimA'), s = document.querySelector('#slScrimS');
+      a.value = 55; s.value = 85;
+      a.dispatchEvent(new Event('input', {bubbles:true}));
+      s.dispatchEvent(new Event('input', {bubbles:true}));
+    }""")
+    check("scrim encoded in vibe link",
+          pg.evaluate("collectVibe().sa") == 55 and pg.evaluate("collectVibe().sb") == 85)
+
     # --- custom checkbox / slider / leaf-green accent ---
     check("accent is leaf green",
           pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#2ee57d")
@@ -247,7 +275,7 @@ with sync_playwright() as p:
     tint = pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--ambient')")
     check("adaptive tint sampled (not transparent)", tint.strip() not in ("", "transparent"), tint.strip())
     # trusted CDN URL gets crossorigin=anonymous
-    pg.evaluate("setVideoSource(bgBack, 'https://cdn.jsdelivr.net/gh/Llunatics/pomodoro-timer@assets/videos/hujan-kaca.mp4')")
+    pg.evaluate("setVideoSource(bgBack, 'https://cdn.jsdelivr.net/gh/Llunatics/llora@assets/videos/hujan-kaca.mp4')")
     check("crossorigin=anonymous on jsDelivr", pg.evaluate("bgBack.getAttribute('crossorigin')") == "anonymous")
 
     # --- YouTube background engine ---

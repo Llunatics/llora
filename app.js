@@ -13,8 +13,8 @@
 const STORE_KEY = 'pomodoro:v3'; // keep the legacy key: renaming wipes users' saved settings
 const LEGACY_KEYS = ['pomodoro:v2', 'pomodoro:v1'];
 const BREATHE_SEC = 15;
-const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/pomodoro-timer@assets/videos/';
-const POSTER_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/pomodoro-timer@assets/posters/';
+const CDN_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/llora@assets/videos/';
+const POSTER_BASE = 'https://cdn.jsdelivr.net/gh/Llunatics/llora@assets/posters/';
 
 const BG_PRESETS = [
   { id: 'hujan-kaca',   name: 'Rain on Glass', url: CDN_BASE + 'hujan-kaca.mp4',   poster: POSTER_BASE + 'hujan-kaca.jpg' },
@@ -58,6 +58,7 @@ const DEFAULT_STATE = {
   bgId: 'hujan-kaca',
   bgCustom: '',
   bgSound: false,         // background video sound on/off
+  scrim: { a: 55, spread: 85 }, // clock backdrop: darkness 0-80 (%), spread 0-160 (px)
   playlist: [],            // [{id, title, url, type, ytId}]
   currentTrack: -1,
   soundscape: { pink: 0, brown: 0, gamma: 0 },
@@ -78,6 +79,7 @@ function loadState() {
           merged = Object.assign(merged, p, {
             durations: Object.assign({}, DEFAULT_STATE.durations, p.durations || {}),
             soundscape: Object.assign({}, DEFAULT_STATE.soundscape, p.soundscape || {}),
+            scrim: Object.assign({}, DEFAULT_STATE.scrim, p.scrim || {}),
             oneThing: Object.assign({}, DEFAULT_STATE.oneThing, p.oneThing || {}),
           });
         } catch { /* skip bad legacy */ }
@@ -90,6 +92,7 @@ function loadState() {
       merged = Object.assign(merged, p, {
         durations: Object.assign({}, DEFAULT_STATE.durations, p.durations || {}),
         soundscape: Object.assign({}, DEFAULT_STATE.soundscape, p.soundscape || {}),
+        scrim: Object.assign({}, DEFAULT_STATE.scrim, p.scrim || {}),
         oneThing: Object.assign({}, DEFAULT_STATE.oneThing, p.oneThing || {}),
       });
     }
@@ -588,6 +591,17 @@ function setBgPhoto(url) {
 function presetPoster() {
   const p = BG_PRESETS.find(p => p.id === S.bgId);
   return (p && !S.bgCustom) ? p.poster : '';
+}
+
+/* clock backdrop scrim: tunable darkness + spread, painted as CSS vars
+   on the clock card (the ::before radial gradient reads them) */
+function applyScrim() {
+  const card = $('#clockCard');
+  if (!card) return;
+  const a = Math.min(80, Math.max(0, S.scrim.a || 0)) / 100;
+  card.style.setProperty('--scrim-a', a.toFixed(2));
+  card.style.setProperty('--scrim-a2', (a * 0.45).toFixed(2));
+  card.style.setProperty('--scrim-spread', Math.min(160, Math.max(0, S.scrim.spread || 0)) + 'px');
 }
 
 /* background video sound toggle: muted <video> elements + the YouTube
@@ -1333,6 +1347,11 @@ function initSettings() {
   });
 
   renderClockSelect();
+  const scA = $('#slScrimA'), scS = $('#slScrimS');
+  scA.value = S.scrim.a; scS.value = S.scrim.spread;
+  paintRangeFill(scA); paintRangeFill(scS);
+  scA.addEventListener('input', () => { S.scrim.a = +scA.value; paintRangeFill(scA); applyScrim(); save(); });
+  scS.addEventListener('input', () => { S.scrim.spread = +scS.value; paintRangeFill(scS); applyScrim(); save(); });
   $('#resetClockPos').addEventListener('click', resetClockPos);
   $('#vibeBtn').addEventListener('click', shareVibe);
 
@@ -1407,6 +1426,7 @@ function collectVibe() {
     x: S.clockPos ? +S.clockPos.fx.toFixed(4) : undefined,
     y: S.clockPos ? +S.clockPos.fy.toFixed(4) : undefined,
     p: S.soundscape.pink, b: S.soundscape.brown, g: S.soundscape.gamma,
+    sa: S.scrim.a, sb: S.scrim.spread,
     f: S.durations.focus, s: S.durations.short, l: S.durations.long, cy: S.cycle,
     tu: (t && safeHttpsUrl(t.url)) || undefined,
   };
@@ -1428,6 +1448,8 @@ function decodeVibe(hash) {
     if (CLOCK_IDS.includes(v.c)) out.c = v.c;
     for (const k of ['x', 'y']) if (isFinite(+v[k]) && +v[k] >= 0 && +v[k] <= 1) out[k] = +v[k];
     for (const k of ['p', 'b', 'g']) if (isFinite(+v[k])) out[k] = Math.min(100, Math.max(0, Math.round(+v[k])));
+    if (isFinite(+v.sa)) out.sa = Math.min(80, Math.max(0, Math.round(+v.sa)));
+    if (isFinite(+v.sb)) out.sb = Math.min(160, Math.max(0, Math.round(+v.sb)));
     for (const [k, lo, hi] of [['f', 0.1, 999], ['s', 0.1, 999], ['l', 0.1, 999]])
       if (isFinite(+v[k])) out[k] = Math.min(hi, Math.max(lo, +v[k]));
     if (isFinite(+v.cy)) out.cy = Math.min(12, Math.max(1, Math.round(+v.cy)));
@@ -1475,6 +1497,14 @@ function applyVibeSession(v) {
   applyBackground();
   renderBgSelect();
   stepperPaints.forEach(fn => fn());
+  if (v.sa !== undefined || v.sb !== undefined) {
+    if (v.sa !== undefined) S.scrim.a = v.sa;
+    if (v.sb !== undefined) S.scrim.spread = v.sb;
+    applyScrim();
+    const scA = $('#slScrimA'), scS = $('#slScrimS');
+    if (scA) { scA.value = S.scrim.a; paintRangeFill(scA); }
+    if (scS) { scS.value = S.scrim.spread; paintRangeFill(scS); }
+  }
   render();
   if (v.tu) addTrack(v.tu); // additive; save() is blocked so it stays session-only
   $('#vibeCapsule').classList.remove('hidden');
@@ -1528,6 +1558,7 @@ function init() {
     }, 12000);
   }
   applyBgSound();
+  applyScrim();
   renderBgSelect();
   renderClockSelect();
 
