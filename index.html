@@ -13,11 +13,12 @@
 </head>
 <body>
 
-<!-- ===== Background layer: double-buffered videos ===== -->
+<!-- ===== Background layer: double-buffered videos + YouTube bg engine ===== -->
 <div class="bg-layer" aria-hidden="true">
   <div class="bg-gradient"></div>
-  <video id="bgA" class="bg-video" muted loop playsinline preload="auto" crossorigin="anonymous"></video>
-  <video id="bgB" class="bg-video" muted loop playsinline preload="auto" crossorigin="anonymous"></video>
+  <video id="bgA" class="bg-video" muted loop playsinline preload="auto"></video>
+  <video id="bgB" class="bg-video" muted loop playsinline preload="auto"></video>
+  <iframe id="bgYt" class="bg-yt" title="" tabindex="-1" aria-hidden="true"></iframe>
   <div class="bg-vignette"></div>
   <canvas id="tintCanvas" width="16" height="16" hidden></canvas>
 </div>
@@ -26,24 +27,10 @@
 <main id="clockCard" class="clock-float centered" aria-label="Timer Pomodoro">
   <div class="clock-inner" id="clockInner">
 
-    <!-- Style 1 — iOS lockscreen -->
-    <section class="clock-face face-lock" data-face="lock" aria-label="Jam digital">
+    <!-- Clock face: single generic face, style driven by data-clock-style (12 styles in CSS) -->
+    <section class="clock-face" aria-label="Jam digital">
       <div class="mode-label" data-mode-label>Fokus</div>
-      <div class="time-display font-lock" data-time>25:00</div>
-      <div class="session-dots" data-dots></div>
-    </section>
-
-    <!-- Style 2 — editorial serif italic -->
-    <section class="clock-face face-serif" data-face="serif" aria-label="Jam serif">
-      <div class="mode-label" data-mode-label>Fokus</div>
-      <div class="time-display font-serif" data-time>25:00</div>
-      <div class="session-dots" data-dots></div>
-    </section>
-
-    <!-- Style 3 — Swiss mono -->
-    <section class="clock-face face-mono" data-face="mono" aria-label="Jam mono">
-      <div class="mode-label" data-mode-label>Fokus</div>
-      <div class="time-display font-mono" data-time>25:00</div>
+      <div class="time-display" data-time>25:00</div>
       <div class="session-dots" data-dots></div>
     </section>
 
@@ -53,6 +40,9 @@
       <button id="oneThingDone" class="one-done hidden" aria-label="Tandai selesai">✓</button>
     </div>
   </div>
+
+  <!-- Mode Mengalir: overtime capsule (visible only in overtime mode) -->
+  <button id="overtimeBtn" class="glass-btn overtime-btn hidden" aria-label="Akhiri mode mengalir dan mulai istirahat">Lanjut Rehat →</button>
 
   <!-- Controls: 3 small circular buttons -->
   <div class="clock-controls no-drag chrome-fade">
@@ -88,22 +78,24 @@
   <section class="set-group">
     <h3>Background video</h3>
     <div class="preset-grid" id="presetGrid"></div>
-    <label class="field-label" for="customBgUrl">URL video custom (.mp4 / .webm)</label>
+    <label class="field-label" for="customBgUrl">URL video custom (YouTube / .mp4 / .webm)</label>
     <div class="row">
-      <input id="customBgUrl" type="url" placeholder="https://…/video.mp4" spellcheck="false">
+      <input id="customBgUrl" type="url" placeholder="https://…/video.mp4 atau link YouTube" spellcheck="false">
       <button id="applyBgUrl" class="glass-btn small">OK</button>
     </div>
-    <p class="hint">Tempel link video langsung. Kalau gagal dimuat, background gradien yang tampil.</p>
+    <p class="hint">Link YouTube jadi background fullscreen (tanpa suara &amp; tombol). Kalau gagal dimuat, background gradien yang tampil.</p>
   </section>
 
   <section class="set-group">
     <h3>Model jam</h3>
-    <div class="style-picker" id="stylePicker">
-      <button data-style="lock" class="glass-btn small">Lockscreen</button>
-      <button data-style="serif" class="glass-btn small">Serif</button>
-      <button data-style="mono" class="glass-btn small">Mono</button>
-    </div>
+    <div class="style-picker" id="stylePicker"></div>
     <button id="resetClockPos" class="glass-btn small wide">Kembalikan posisi jam ke tengah</button>
+  </section>
+
+  <section class="set-group">
+    <h3>Bagikan</h3>
+    <button id="vibeBtn" class="glass-btn small wide" title="Salin Vibe">✦ Salin Vibe</button>
+    <p class="hint">Salin link berisi video, model jam, posisi, suara &amp; durasi — yang buka linknya langsung coba vibe yang sama.</p>
   </section>
 
   <section class="set-group">
@@ -168,6 +160,13 @@
 <video id="plVideo" hidden playsinline preload="metadata"></video>
 <audio id="plAudio" hidden preload="metadata"></audio>
 <div id="ytHidden" aria-hidden="true"><div id="ytPlayer"></div></div>
+
+<!-- Vibe preview capsule (only when opening a #vibe= link) -->
+<div id="vibeCapsule" class="glass vibe-capsule hidden no-drag" role="status">
+  <span>Mencoba Vibe kiriman teman</span>
+  <button id="vibeKeep" class="glass-btn small">Simpan jadi milikku</button>
+  <button id="vibeDrop" class="glass-btn small" aria-label="Tutup pratinjau vibe">✕</button>
+</div>
 
 <div id="toast" class="glass toast hidden" role="status"></div>
 

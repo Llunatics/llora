@@ -90,6 +90,18 @@ body {
   transition: opacity .8s ease;
 }
 .bg-video.on { opacity: 1; }
+/* YouTube background engine: zoomed iframe, chrome cropped away */
+.bg-yt {
+  position: absolute; top: 50%; left: 50%;
+  width: 100%; height: 100%;
+  border: 0;
+  transform: translate(-50%, -50%) scale(1.35);
+  transform-origin: center;
+  opacity: 0;
+  transition: opacity .8s ease;
+  pointer-events: none;
+}
+.bg-yt.on { opacity: 1; }
 .bg-vignette {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.38) 100%);
@@ -110,10 +122,79 @@ body {
 .clock-float.centered { left: 50%; top: 42%; transform: translate(-50%, -50%); }
 .clock-float.dragging { cursor: grabbing; scale: 1.03; filter: brightness(1.12); transition: scale .35s cubic-bezier(.2, 1.6, .4, 1), filter .2s ease; }
 
-.clock-face { display: none; }
-.clock-float[data-clock-style="lock"] .face-lock,
-.clock-float[data-clock-style="serif"] .face-serif,
-.clock-float[data-clock-style="mono"] .face-mono { display: block; }
+.clock-face { display: block; }
+
+/* ---------- 12 clock styles (Google Fonts, boxless) ---------- */
+.time-display {
+  font-variant-numeric: tabular-nums;
+  transition: color 1.2s ease, text-shadow 1.2s ease;
+}
+/* 1 — Tipis Udara */
+.clock-float[data-clock-style="air"] .time-display {
+  font-family: "Plus Jakarta Sans", -apple-system, "SF Pro Display", system-ui, sans-serif;
+  font-weight: 200; letter-spacing: -0.04em;
+}
+/* 2 — Editorial Klasik */
+.clock-float[data-clock-style="vogue"] .time-display {
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-weight: 300; font-style: italic; letter-spacing: -0.02em;
+}
+/* 3 — Sinema Jepang */
+.clock-float[data-clock-style="kyoto"] .time-display {
+  font-family: "Shippori Mincho", "Hiragino Mincho ProN", Georgia, serif;
+  font-weight: 400; letter-spacing: 0.02em;
+}
+/* 4 — Swiss Arsitek */
+.clock-float[data-clock-style="bauhaus"] .time-display {
+  font-family: "Space Grotesk", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 300; letter-spacing: -0.05em;
+}
+/* 5 — Kapsul Tinggi */
+.clock-float[data-clock-style="kapsul"] .time-display {
+  font-family: "Antonio", "Arial Narrow", sans-serif;
+  font-weight: 200; letter-spacing: 0.04em;
+}
+/* 6 — Mesin Ketik Senja */
+.clock-float[data-clock-style="ketik"] .time-display {
+  font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-weight: 100; letter-spacing: -0.06em;
+}
+/* 7 — Kaca Organik */
+.clock-float[data-clock-style="organik"] .time-display {
+  font-family: "Quicksand", "Comfortaa", -apple-system, sans-serif;
+  font-weight: 300; letter-spacing: -0.03em;
+}
+/* 8 — Galeri Seni */
+.clock-float[data-clock-style="galeri"] .time-display {
+  font-family: "Bodoni Moda", "Didot", Georgia, serif;
+  font-weight: 400; letter-spacing: -0.03em;
+}
+/* 9 — Garis Ganda */
+.clock-float[data-clock-style="kawat"] .time-display {
+  font-family: "Bungee Hairline", "Arial Narrow", sans-serif;
+  font-weight: 400; letter-spacing: 0.02em;
+}
+/* 10 — Nordik Minimal */
+.clock-float[data-clock-style="nordik"] .time-display {
+  font-family: "Outfit", -apple-system, "Helvetica Neue", sans-serif;
+  font-weight: 100; letter-spacing: -0.03em;
+}
+/* 11 — Sastra Romantis */
+.clock-float[data-clock-style="puisi"] .time-display {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400; font-style: italic; letter-spacing: -0.01em;
+}
+/* 12 — Vertikal Zen: stacked, no colon */
+.clock-float[data-clock-style="zen"] .time-display {
+  font-family: "DM Sans", -apple-system, sans-serif;
+  font-weight: 200;
+  font-size: clamp(4rem, 17vw, 7rem);
+  line-height: 0.88;
+  display: flex; flex-direction: column; align-items: center;
+}
+.clock-float[data-clock-style="zen"] .time-display .colon { display: none; }
+.clock-float[data-clock-style="zen"] .time-display .mm,
+.clock-float[data-clock-style="zen"] .time-display .ss { display: block; }
 
 .mode-label {
   font-size: 11px;
@@ -127,13 +208,14 @@ body {
 .time-display {
   font-size: clamp(3rem, 13vw, 5.5rem);
   line-height: 1.05;
-  font-variant-numeric: tabular-nums;
   letter-spacing: -0.04em;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35), 0 12px 48px rgba(0, 0, 0, 0.45);
 }
-.font-lock  { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; font-weight: 200; }
-.font-serif { font-family: ui-serif, "New York", Baskerville, Georgia, serif; font-style: italic; font-weight: 400; }
-.font-mono  { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-weight: 300; letter-spacing: -0.02em; }
+/* Mode Mengalir: warm champagne glow */
+.clock-float.overtime .time-display {
+  color: rgba(255, 230, 180, 0.95);
+  text-shadow: 0 0 18px rgba(255, 200, 120, 0.45), 0 2px 12px rgba(0, 0, 0, 0.35), 0 12px 48px rgba(0, 0, 0, 0.45);
+}
 
 /* colon breathe */
 .time-display .colon { animation: colonBreathe 2s ease-in-out infinite; }
@@ -207,6 +289,29 @@ body {
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
 }
 
+/* Mode Mengalir capsule button (stays clickable in Mode Hening at 60%) */
+.overtime-btn {
+  margin-top: 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  border-color: rgba(255, 214, 150, 0.4);
+  transition: opacity .8s ease, transform .15s ease, background .15s ease;
+}
+body.hening .overtime-btn { opacity: 0.6; }
+
+/* Vibe preview capsule */
+.vibe-capsule {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+  z-index: 45;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px 7px 14px; border-radius: 9999px;
+  font-size: 12px; white-space: nowrap;
+  transition: opacity .3s ease, transform .3s ease;
+}
+.vibe-capsule.hidden { display: block !important; opacity: 0; transform: translateX(-50%) translateY(-8px); pointer-events: none; }
+.vibe-capsule .glass-btn.small { padding: 4px 10px; font-size: 11px; }
+
 /* ---------- Mode Hening: fade all chrome ---------- */
 .chrome-fade { transition: opacity .8s ease; }
 body.hening .chrome-fade { opacity: 0; pointer-events: none; }
@@ -270,7 +375,8 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
 
 .hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
 
-.style-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
+.style-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 2px; }
+.style-picker .glass-btn.small { font-size: 11px; padding: 6px 4px; }
 
 .dur-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .dur-grid label { font-size: 11px; color: var(--text-dim); display: flex; flex-direction: column; gap: 5px; }
