@@ -393,6 +393,18 @@ with sync_playwright() as p:
     # --- playlist: titles only, native audio ---
     pg.click("#plFab")
     check("playlist panel opens", pg.is_visible("#playlistPanel"))
+    pg.wait_for_timeout(350)
+    check("playlist panel animates (opacity+transform transition)",
+          "opacity" in pg.eval_on_selector("#playlistPanel", "el => getComputedStyle(el).transition"))
+    check("fab morphs to X when open",
+          pg.eval_on_selector("#plFab .fab-x", "el => getComputedStyle(el).opacity") == "1"
+          and pg.eval_on_selector("#plFab .fab-note", "el => getComputedStyle(el).opacity") == "0")
+    pg.click("#plFab")  # close again
+    pg.wait_for_timeout(350)
+    check("fab morphs back to note when closed",
+          pg.eval_on_selector("#plFab .fab-x", "el => getComputedStyle(el).opacity") == "0")
+    pg.click("#plFab")  # reopen for the tests below
+    pg.wait_for_timeout(300)
     pg.fill("#plUrl", f"http://127.0.0.1:{PORT}/test-audio.mp3")
     pg.click("#plAdd")
     pg.wait_for_timeout(1500)
@@ -439,6 +451,11 @@ with sync_playwright() as p:
     _sec = pg.eval_on_selector("[data-time]", "el => el.textContent")
     check("seconds shown when enabled",
           len(_sec) == 8 and _sec[2] == ":" and _sec[5] == ":", _sec)
+    _t1 = pg.eval_on_selector("[data-time]", "el => el.textContent")
+    pg.wait_for_timeout(1300)
+    _t2 = pg.eval_on_selector("[data-time]", "el => el.textContent")
+    check("seconds tick live while timer idle",
+          _t1 != _t2 and pg.evaluate("T.running") == False, f"{_t1} -> {_t2}")
     check("seconds persist",
           pg.evaluate("JSON.parse(localStorage.getItem('pomodoro:v3')).clockSeconds") == True)
     pg.click("#chkClockSec")

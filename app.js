@@ -1782,6 +1782,9 @@ function init() {
 
   T.remaining = durSec(T.mode);
   render();
+  // wall-clock heartbeat: the 250ms tick only runs while the timer runs,
+  // so clock mode needs its own pulse to keep seconds/date fresh
+  setInterval(() => { if (S.clockMode) render(); }, 500);
 }
 
 document.addEventListener('DOMContentLoaded', init);
