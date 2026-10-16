@@ -654,8 +654,10 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
 .np-time { font-size: 11px; color: var(--text-dim); margin-top: 2px; font-variant-numeric: tabular-nums; }
 .np-bigbtn {
   flex: none; width: 52px; height: 52px; border-radius: 16px;
-  font-size: 20px; padding: 0;
+  padding: 0;
 }
+.np-bigbtn .icon { width: 22px; height: 22px; }
+.np-bar .glass-btn.small .icon { width: 14px; height: 14px; }
 /* transport row: prev / play / next + seek bar */
 .np-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
 .np-bar .glass-btn.small { padding: 4px 8px; font-size: 11px; border-radius: 9px; flex: none; }
