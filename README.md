@@ -28,7 +28,7 @@ Llora is a focus timer that feels like a quiet place, not a productivity tool. A
 
 **Ambience**
 - Five cinematic 1080p video backgrounds (Rain on Glass, Rainforest, Night City, Cozy Room, Sea Sunset) with instant photo fallbacks, 800 ms crossfade, double-buffered switching.
-- Paste any YouTube link as a fullscreen looping background; background-video sound toggle (off by default, so it never clashes with your music).
+- Paste any YouTube link as a fullscreen looping background (YouTube links and direct `.mp4`/`.webm` URLs are validated on entry); background-video sound toggle (off by default, so it never clashes with your music).
 
 **Interface**
 - Liquid glass with adaptive tint sampled live from the video frame.
@@ -72,7 +72,7 @@ python3 -m http.server 8000
 
 ## Tech
 
-Vanilla HTML + CSS + JS. WebAudio (ritual + soundscape synthesis), Wake Lock, Notifications, Media Session, YouTube IFrame API (lazy), Pointer Events drag, `localStorage`. Verified with 100+ automated Playwright checks — real clicks across all twelve clock styles, drag persistence, playlist flows, soundscape, vibe-link round-trips, and screenshot review.
+Vanilla HTML + CSS + JS. WebAudio (ritual + soundscape synthesis), Wake Lock, Notifications, Media Session, YouTube IFrame API (lazy), Pointer Events drag, `localStorage`. Verified with 158 automated Playwright checks — real clicks across all twelve clock styles, drag persistence, playlist flows, soundscape, vibe-link round-trips, and screenshot review.
 
 ## License
 

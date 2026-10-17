@@ -1634,8 +1634,15 @@ function initSettings() {
   initAccordion();
   if (S.bgCustom) $('#customBgUrl').value = S.bgCustom;
   $('#applyBgUrl').addEventListener('click', () => {
-    const url = $('#customBgUrl').value.trim();
-    if (!url) { toast('Paste the video URL first.'); return; }
+    const raw = $('#customBgUrl').value.trim();
+    if (!raw) { toast('Paste the video URL first.'); return; }
+    const url = safeHttpsUrl(raw);
+    // only a YouTube video link or a direct video file can be a background;
+    // reject junk early instead of persisting it and waiting for the load watchdog
+    if (!url || !(parseMedia(url).type === 'youtube' || /\.(mp4|webm)(\?|#|$)/i.test(url))) {
+      toast('That URL will not work — use a YouTube link or an .mp4/.webm video URL (https).');
+      return;
+    }
     S.bgCustom = url; S.bgId = 'custom'; save();
     applyBackground();
     renderBgSelect();
