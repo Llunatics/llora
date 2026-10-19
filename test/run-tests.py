@@ -643,6 +643,62 @@ with sync_playwright() as p:
     bad = pg.evaluate("decodeVibe(btoa(JSON.stringify({vu: 'javascript:alert(1)', tu: 'data:text/html,x'})))")
     check("xss guard rejects non-https", bad.get("vu") is None and bad.get("tu") is None, str(bad))
 
+    # --- audit 2026-10-20: antrean callback YT API ---
+    # dua loadYtApi() saat script masih dimuat: callback pertama tidak boleh hilang
+    ncb = pg.evaluate("""() => {
+      ytApiReady = false; ytApiLoading = false;
+      const hits = [];
+      loadYtApi(() => hits.push('a'));
+      loadYtApi(() => hits.push('b'));
+      window.onYouTubeIframeAPIReady(); // simulasi script selesai dimuat
+      return hits;
+    }""")
+    check("queued yt api callbacks both fire", ncb == ["a", "b"], str(ncb))
+    pg.evaluate("() => { ytApiReady = false; ytApiLoading = false; }")  # kembalikan
+
+    # --- audit 2026-10-20: tombol N sadar ytListMode ---
+    pg.evaluate("""() => {
+      window.__nv = [];
+      ytListMode = true;
+      ytPlayer = { nextVideo: () => window.__nv.push('next'),
+                   previousVideo: () => window.__nv.push('prev') };
+      S.playlist = [{id:'t1', title:'T1', artist:'', url:'x',
+                     type:'ytplaylist', ytId:null, listId:'PLx'}];
+      S.currentTrack = 0;
+      plStep(1); plStep(-1);
+    }""")
+    check("plStep delegates to yt player inside a yt playlist",
+          pg.evaluate("window.__nv") == ["next", "prev"], str(pg.evaluate("window.__nv")))
+    pg.evaluate(f"""() => {{
+      ytListMode = false; ytPlayer = null; window.__nv = [];
+      const mk = (id) => ({{id, title:id, artist:'', url:'http://127.0.0.1:{PORT}/test-audio.mp3',
+                           type:'audio', ytId:null, listId:null}});
+      S.playlist = [mk('ka'), mk('kb')];
+      S.currentTrack = 0; save(); renderPlaylist();
+    }}""")
+    pg.mouse.click(5, 5)
+    pg.wait_for_timeout(200)
+    pg.keyboard.press("n")
+    pg.wait_for_timeout(800)
+    check("N key advances to next track", pg.evaluate("S.currentTrack") == 1,
+          pg.evaluate("S.currentTrack"))
+    pg.evaluate("() => { S.playlist = []; S.currentTrack = -1; save(); renderPlaylist(); }")
+
+    # --- audit 2026-10-20: playlist korup di localStorage tidak crash ---
+    pg.evaluate("""() => {
+      const s = JSON.parse(localStorage.getItem('pomodoro:v3'));
+      s.playlist = [null, 'junk', {id:'ok1', title:'OK', artist:'',
+                    url:'http://x/y.mp3', type:'audio', ytId:null, listId:null}, 42];
+      s.currentTrack = 99;
+      localStorage.setItem('pomodoro:v3', JSON.stringify(s));
+    }""")
+    pg.reload()
+    pg.wait_for_timeout(2000)
+    check("corrupt playlist sanitized on load",
+          pg.evaluate("S.playlist.length") == 1 and pg.evaluate("S.currentTrack") == -1,
+          f"{pg.evaluate('S.playlist.length')}/{pg.evaluate('S.currentTrack')}")
+    check("no page errors from corrupt state", len(errors) == 0, str(errors[:2]))
+
     # --- audit v6.3 regressions ---
     # settings sliders must be full-width tracks, not 17px dots (CSS comma-selector bug)
     pg2 = b.new_page(viewport={"width": 1280, "height": 900})

@@ -114,6 +114,12 @@ function loadState() {
   if (!merged.stats || merged.stats.date !== today) merged.stats = { date: today, focusSec: 0 };
   // one-thing is per-day
   if (merged.oneThing.date !== today) merged.oneThing = { text: '', date: today };
+  // playlist: buang entri korup (mis. localStorage diedit manual) agar render/play tidak crash
+  if (!Array.isArray(merged.playlist)) merged.playlist = [];
+  else merged.playlist = merged.playlist.filter(t =>
+    t && typeof t === 'object' && typeof t.url === 'string' && typeof t.title === 'string');
+  if (!Number.isInteger(merged.currentTrack) || merged.currentTrack < 0 || merged.currentTrack >= merged.playlist.length)
+    merged.currentTrack = -1;
   return merged;
 }
 const S = loadState();
@@ -1055,7 +1061,7 @@ function initShortcuts() {
       T.running ? pause() : start();
     }
     else if (k === 'm') toggleMute();
-    else if (k === 'n') stepTrack(1);
+    else if (k === 'n') plStep(1); // sadar ytListMode: di dalam playlist YT, pindah video bukan track
     else if (k === 'c') cycleClockStyle(1);
     else if (k === 'h') toggleHeningForce();
     else if (k === 't') setClockMode(!S.clockMode);
@@ -1388,11 +1394,17 @@ function removeTrack(id) {
 
 /* --- hidden engines --- */
 let ytApiReady = false, ytPlayer = null, ytReadyTrack = null, ytPlaying = false, ytApiLoading = false;
+const ytApiQueue = []; // callback antre selama script API dimuat: tidak ada yang hilang
 function loadYtApi(cb) {
   if (ytApiReady) { cb(); return; }
-  window.__ytApiCb = () => { ytApiReady = true; cb(); };
-  if (ytApiLoading) return;
+  ytApiQueue.push(cb);
+  if (ytApiLoading) return; // pemuatan berjalan: callback sudah antre di atas
   ytApiLoading = true;
+  window.__ytApiCb = () => {
+    ytApiReady = true;
+    const q = ytApiQueue.splice(0);
+    q.forEach(fn => { try { fn(); } catch {} });
+  };
   const tag = document.createElement('script');
   tag.src = 'https://www.youtube.com/iframe_api';
   tag.onerror = () => { toast('Failed to load the YouTube API.'); };
