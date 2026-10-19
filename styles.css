@@ -284,10 +284,10 @@ body {
 .clock-float:not(.running) .time-display .colon { animation-play-state: paused; opacity: .95; }
 @keyframes colonBreathe { 0%, 100% { opacity: .95; } 50% { opacity: .3; } }
 
-.session-dots { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+.session-dots { display: flex; gap: 6px; justify-content: center; margin-top: 10px; }
 .session-dots i {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
   transition: background .3s ease;
 }
 .session-dots i.done { background: var(--accent); }
@@ -301,23 +301,27 @@ body {
   100% { transform: scale(1); }
 }
 
-/* Satu Hal — one intention line */
+/* Satu Hal — one intention line: a subtle glass pill, clearly an element */
 .one-thing {
-  margin-top: 10px;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  transition: filter .6s ease, opacity .6s ease;
+  margin: 12px 0 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 9999px;
+  padding: 7px 8px 7px 16px;
+  max-width: 78vw;
+  transition: filter .6s ease, opacity .6s ease, border-color .2s ease, background .2s ease;
 }
+.one-thing:focus-within { border-color: rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.08); }
 .one-thing input {
   background: transparent; border: none; outline: none;
-  color: var(--text); opacity: 0.55;
-  font-size: 12px; letter-spacing: 0.04em; text-align: center;
-  width: 190px; max-width: 60vw;
-  border-bottom: 1px solid transparent;
-  transition: opacity .2s ease, border-color .2s ease;
+  color: var(--text); opacity: 0.75;
+  font-size: 12.5px; letter-spacing: 0.04em; text-align: center;
+  width: 170px; max-width: 56vw;
   font-family: var(--font);
+  padding: 0;
 }
-.one-thing input::placeholder { color: rgba(245, 247, 250, 0.35); }
-.one-thing input:focus { opacity: 0.95; border-bottom-color: rgba(255, 255, 255, 0.3); }
+.one-thing input::placeholder { color: rgba(245, 247, 250, 0.4); }
 .one-done {
   background: none; border: none; color: var(--accent);
   font-size: 14px; cursor: pointer; opacity: 0.8; padding: 2px 6px;
@@ -325,24 +329,36 @@ body {
 .one-done:hover { opacity: 1; }
 .one-thing.dissolve { filter: blur(6px); opacity: 0; }
 
-/* clock controls: 3 small circular buttons */
-.clock-controls { margin-top: 12px; }
-.btn-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; }
+/* clock controls: hero play button + 2 quiet companions */
+.clock-controls { margin-top: 14px; }
+.btn-row { display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 12px; }
 .ctl-btn {
   width: 40px; height: 40px; border-radius: 9999px;
   padding: 0;
 }
 .ctl-btn .icon { width: 16px; height: 16px; }
+.ctl-btn.hero {
+  width: 52px; height: 52px;
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 32%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.ctl-btn.hero .icon { width: 20px; height: 20px; }
+.ctl-btn.hero:hover {
+  box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 4px 16px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
 .progress-track {
-  height: 3px; border-radius: 99px;
-  background: rgba(255, 255, 255, 0.18);
+  height: 4px; border-radius: 99px;
+  background: rgba(255, 255, 255, 0.14);
   overflow: hidden;
-  max-width: 190px; margin: 0 auto;
+  max-width: 200px; margin: 0 auto;
 }
 .progress-fill {
   height: 100%; width: 0%;
   border-radius: 99px;
   background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
   transition: width .3s linear;
 }
 .status-line {
