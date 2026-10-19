@@ -65,6 +65,8 @@ body {
 .glass-btn.small { padding: 9px 13px; font-size: 13px; border-radius: 12px; }
 .glass-btn.wide { width: 100%; margin-top: 8px; }
 .glass-btn.danger { border-color: rgba(255, 120, 120, 0.45); color: #ffc9c9; }
+.glass-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+#plAdd .icon { width: 16px; height: 16px; }
 .glass-btn.active { background: color-mix(in srgb, var(--accent) 20%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 
 .icon { width: 18px; height: 18px; fill: currentColor; }
@@ -629,8 +631,6 @@ input[type="number"] { padding: 7px 6px 7px 10px; }
   transition: opacity .25s ease, transform .25s ease;
 }
 #playlistPanel.hidden { display: block !important; opacity: 0; transform: translateY(10px); pointer-events: none; }
-#playlistPanel .panel-head { justify-content: flex-end; }
-#playlistPanel .panel-head h2 { font-size: 13px; }
 
 /* now-playing card: cover left, meta fills the row */
 .np {

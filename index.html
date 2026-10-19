@@ -93,6 +93,8 @@
       <input id="customBgUrl" type="url" placeholder="https://…/video.mp4 or a YouTube link" spellcheck="false">
       <button id="applyBgUrl" class="glass-btn small">OK</button>
     </div>
+    <button id="randomBgBtn" class="glass-btn small wide">🎲 Random · @kazephoto</button>
+    <p class="hint">A random 4K nature video from the kazephoto channel as your fullscreen background.</p>
     <label class="slider-row">Dim background<input id="slDimBg" type="range" min="0" max="70" value="0"></label>
     <label class="check"><input id="chkBgSound" type="checkbox"> Background video sound</label>
     <p class="hint">A YouTube link becomes a fullscreen background (no buttons). While a video loads, its photo preview is shown. If it fails to load, the gradient background is shown.</p>
@@ -180,9 +182,6 @@
 
 <!-- ===== Playlist panel: judul track saja, tanpa player box ===== -->
 <section id="playlistPanel" class="glass panel no-drag hidden" aria-label="Playlist">
-  <div class="panel-head">
-    <h2>Playlist</h2>
-  </div>
   <div class="np">
     <div class="np-cover">
       <img id="npCover" alt="" hidden>
@@ -207,7 +206,7 @@
   <div class="pl-add">
     <div class="row">
       <input id="plUrl" type="url" placeholder="YouTube link / playlist / .mp3 / .mp4" spellcheck="false" aria-label="Add media URL to playlist">
-      <button id="plAdd" class="glass-btn small">＋</button>
+      <button id="plAdd" class="glass-btn small" aria-label="Add track"><svg viewBox="0 0 24 24" class="icon"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg></button>
     </div>
   </div>
 </section>

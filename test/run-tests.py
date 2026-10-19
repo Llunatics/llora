@@ -25,7 +25,7 @@ def check(name, cond, extra=""):
 
 errors = []
 with sync_playwright() as p:
-    b = p.chromium.launch(executable_path="/home/hatch/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
+    b = p.chromium.launch(executable_path="/home/hatch/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome",
                           args=["--autoplay-policy=no-user-gesture-required"])
     pg = b.new_page(viewport={"width": 1440, "height": 900})
     pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
@@ -371,6 +371,36 @@ with sync_playwright() as p:
     pg.wait_for_timeout(1000)
     check("leaving yt bg hides iframe", not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
 
+    # --- random @kazephoto background (ytImportIds stubbed, like playlist import) ---
+    pg.click("#menuBtn")  # reopen: the Escape test closed the settings panel
+    pg.wait_for_timeout(400)
+    pg.evaluate("""() => {
+      window.__realImport2 = ytImportIds;
+      ytImportIds = async () => ['kzAAA111111', 'kzBBB222222'];
+    }""")
+    pg.evaluate("""() => {
+      const h = document.querySelector('.set-group.acc[data-acc="bg"] .acc-head');
+      if (h.getAttribute('aria-expanded') !== 'true') h.click();
+    }""")
+    pg.wait_for_timeout(300)
+    check("random bg button exists", pg.evaluate("document.querySelector('#randomBgBtn') !== null"))
+    pg.evaluate("document.querySelector('#randomBgBtn').scrollIntoView({block: 'center'})")
+    pg.wait_for_timeout(300)
+    pg.click("#randomBgBtn")
+    pg.wait_for_timeout(5000)
+    picked = pg.evaluate("S.bgCustom")
+    check("random bg picks a video from the stubbed uploads",
+          picked in ("https://www.youtube.com/watch?v=kzAAA111111",
+                     "https://www.youtube.com/watch?v=kzBBB222222"), picked)
+    check("random bg syncs the custom-url input",
+          pg.evaluate("document.querySelector('#customBgUrl').value") == picked, picked)
+    check("random bg loads the youtube engine",
+          any(s in pg.eval_on_selector("#bgYt", "el => el.src")
+              for s in ["youtube.com/embed/kzAAA111111", "youtube.com/embed/kzBBB222222"]))
+    pg.evaluate("() => { ytImportIds = window.__realImport2; }")
+    pg.click("#menuBtn")  # leave the panel as found (closed)
+    pg.wait_for_timeout(300)
+
     # --- singing bowl + thrum (no page errors = clean code path) ---
     pg.evaluate("S.sound = true; bowlStrike(); thrumStart();")
     pg.wait_for_timeout(800)
@@ -415,6 +445,11 @@ with sync_playwright() as p:
           pg.eval_on_selector_all(".pl-add .hint", "els => els.length") == 0)
     check("no double close button in playlist head",
           pg.evaluate("document.querySelector('#plClose') === null"))
+    check("playlist heading removed (cleaner top space)",
+          pg.evaluate("document.querySelector('#playlistPanel .panel-head') === null"))
+    check("add button is a crisp SVG, not a text glyph",
+          pg.eval_on_selector("#plAdd", "el => el.querySelector('svg.icon') !== null")
+          and pg.eval_on_selector("#plAdd", "el => el.textContent.trim()") == "")
     check("now-playing card structure",
           pg.eval_on_selector("#npCover", "el => el.tagName") == "IMG"
           and pg.eval_on_selector("#npTitle", "el => el.textContent") == "Nothing playing"

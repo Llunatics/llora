@@ -981,6 +981,37 @@ function onBgSelectPick(id) {
   toast(`Background: ${BG_PRESETS.find(p => p.id === id).name}`);
 }
 
+/* Random background from the @kazephoto channel (4K Japanese nature scenery).
+   Reads the channel's uploads playlist through the hidden import player —
+   the same no-API-key mechanism as playlist import — picks a random video
+   and sets it as the fullscreen YouTube background. Falls back to a small
+   baked-in list if the playlist can't be read. */
+const KAZE_UPLOADS = 'UUYj70gb7E7-O76bOeA383jA'; // @kazephoto uploads
+const KAZE_FALLBACK = ['rDzG3EXU9Us', 'dhB2HDUneOI', 'BOdr9L_zkF8', 'i74qqovN1k0', 'bqxEDuRNWMQ'];
+let kazeBusy = false;
+async function randomKazeBg() {
+  if (kazeBusy) return;
+  kazeBusy = true;
+  const btn = $('#randomBgBtn');
+  if (btn) btn.disabled = true;
+  toast('Picking a random video from @kazephoto…');
+  let ids = [];
+  try { ids = await ytImportIds(KAZE_UPLOADS); } catch { /* fall through to fallback */ }
+  if (!ids.length) ids = KAZE_FALLBACK.slice();
+  kazeBusy = false;
+  if (btn) btn.disabled = false;
+  if (!ids.length) { toast('Could not reach YouTube. Try again.'); return; }
+  const vid = ids[Math.floor(Math.random() * ids.length)];
+  S.bgCustom = `https://www.youtube.com/watch?v=${vid}`;
+  S.bgId = 'custom';
+  const urlInput = $('#customBgUrl');
+  if (urlInput) urlInput.value = S.bgCustom;
+  save();
+  applyBackground();
+  renderBgSelect();
+  toast('Background: a random @kazephoto video.');
+}
+
 /* ---------------- Mode Hening ---------------- */
 let lastPointerMove = Date.now();
 function panelOpen() {
@@ -1648,6 +1679,7 @@ function initSettings() {
     renderBgSelect();
     toast('Custom background applied.');
   });
+  $('#randomBgBtn').addEventListener('click', randomKazeBg);
   const bgSnd = $('#chkBgSound');
   bgSnd.checked = !!S.bgSound;
   bgSnd.addEventListener('change', () => {
