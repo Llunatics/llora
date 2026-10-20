@@ -71,6 +71,17 @@ const DEFAULT_STATE = {
   acc: {},                // accordion open state per settings group
 };
 
+/* Local calendar day (YYYY-MM-DD) in the user's timezone. The old code used
+   new Date().toISOString() (UTC): for a WIB user the "day" flipped at 07:00,
+   so an early-morning focus session counted toward "yesterday" and Satu Hal
+   set at 06:30 was wiped at 07:00. Daily stats must follow local midnight.
+   (Defined before loadState() runs — it is called from there.) */
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+};
+
 /* ---------------- state ---------------- */
 function loadState() {
   const fresh = () => structuredClone(DEFAULT_STATE);
@@ -110,7 +121,7 @@ function loadState() {
   if (!CLOCK_IDS.includes(merged.clockStyle)) merged.clockStyle = 'air';
   if (!BG_IDS.includes(merged.bgId) && merged.bgId !== 'custom') merged.bgId = 'hujan-kaca';
   // daily stats reset
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   if (!merged.stats || merged.stats.date !== today) merged.stats = { date: today, focusSec: 0 };
   // one-thing is per-day
   if (merged.oneThing.date !== today) merged.oneThing = { text: '', date: today };
@@ -131,7 +142,7 @@ function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch {}
 }
 function bankFocus(sec) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   if (S.stats.date !== today) S.stats = { date: today, focusSec: 0 };
   S.stats.focusSec += Math.max(0, Math.round(sec));
   save();
@@ -1081,7 +1092,7 @@ function initOneThing() {
   const sync = () => {
     done.classList.toggle('hidden', !input.value.trim());
     S.oneThing.text = input.value.trim();
-    S.oneThing.date = new Date().toISOString().slice(0, 10);
+    S.oneThing.date = todayStr();
     save();
   };
   input.addEventListener('input', () => {
