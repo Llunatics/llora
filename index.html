@@ -19,7 +19,7 @@
   <img id="bgPhoto" class="bg-photo" alt="" aria-hidden="true">
   <video id="bgA" class="bg-video" muted loop playsinline preload="auto"></video>
   <video id="bgB" class="bg-video" muted loop playsinline preload="auto"></video>
-  <iframe id="bgYt" class="bg-yt" title="Background video" tabindex="-1" aria-hidden="true"></iframe>
+  <iframe id="bgYt" class="bg-yt" title="Background video" tabindex="-1" aria-hidden="true" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin"></iframe>
   <div id="bgDim"></div>
   <div class="bg-vignette"></div>
   <canvas id="tintCanvas" width="16" height="16" hidden></canvas>
@@ -97,7 +97,7 @@
     <p class="hint">A random 4K nature video from the kazephoto channel as your fullscreen background.</p>
     <label class="slider-row">Dim background<input id="slDimBg" type="range" min="0" max="70" value="0"></label>
     <label class="check"><input id="chkBgSound" type="checkbox"> Background video sound</label>
-    <p class="hint">A YouTube link becomes a fullscreen background (no buttons). While a video loads, its photo preview is shown. If it fails to load, the gradient background is shown.</p>
+    <p class="hint">A YouTube link becomes a fullscreen background. Its preview photo stays visible until the video is actually playing, so YouTube's play and buffering symbols never show.</p>
     </div></div>
   </section>
 

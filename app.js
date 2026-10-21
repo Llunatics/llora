@@ -625,6 +625,12 @@ function cycleClockStyle(dir = 1) {
 /* ---------------- background: double-buffered crossfade + YouTube engine ---------------- */
 let bgFront = null, bgBack = null, bgYtEl = null, bgFailTimer = null, bgErrorToasted = false;
 let tintTimer = null, tintOK = true, bgYtActive = false;
+/* YouTube background shield state. The iframe is revealed ONLY after
+   YouTube itself reports PLAYING (state 1); every other state keeps the
+   preview photo in front, hiding YouTube's play/buffering chrome. */
+let bgYtVideoId = null, bgYtState = -1, bgYtReady = false, bgYtAcceptState = false;
+let bgYtLoadToken = 0, bgYtPulseTimer = null, bgYtLastTry = 0, bgYtUserGestured = false;
+let bgYtShieldWired = false;
 
 const NEUTRAL_TINT = 'rgba(255,255,255,0.12)';
 const isTrustedVideo = (url) => typeof url === 'string' && url.startsWith(CDN_BASE);
@@ -698,16 +704,14 @@ function initAccordion() {
 }
 
 /* background video sound toggle: muted <video> elements + the YouTube
-   background iframe (via enablejsapi postMessage) */
+   background iframe (via enablejsapi postMessage). If sound is requested
+   before any user gesture, the YouTube bg still starts muted — unmuting
+   too early can make the browser block autoplay entirely; the first
+   pointer/key gesture applies the requested unmute. */
 function applyBgSound() {
   const muted = !S.bgSound;
   [bgFront, bgBack].forEach(v => { if (v) v.muted = muted; });
-  if (bgYtActive && bgYtEl && bgYtEl.contentWindow) {
-    try {
-      bgYtEl.contentWindow.postMessage(
-        JSON.stringify({ event: 'command', func: muted ? 'mute' : 'unMute', args: '' }), '*');
-    } catch { /* iframe not ready yet */ }
-  }
+  if (bgYtActive) bgYtPost(muted || !bgYtUserGestured ? 'mute' : 'unMute');
 }
 
 /* CORS: crossorigin="anonymous" ONLY for our trusted jsDelivr URLs.
@@ -743,25 +747,174 @@ function wireVideoCommon(v) {
 }
 
 /* YouTube as fullscreen background: zoomed iframe (chrome cropped), muted+loop.
-   Ambient sampler can't read cross-origin iframes -> neutral tint instead. */
+   Ambient sampler can't read cross-origin iframes -> neutral tint instead.
+
+   SHIELD: the raw embed paints YouTube's own poster + big play button while
+   cued/paused and a spinner while buffering — and plain `autoplay=1` is often
+   ignored on mobile, leaving that chrome frozen on screen. So the iframe is
+   NEVER revealed on load: a preview photo covers it, the embed is driven over
+   the enablejsapi postMessage channel, and the iframe only fades in once
+   YouTube reports PLAYING. Buffering/paused/cued states drop straight back
+   to the photo. If autoplay is refused, the photo simply stays — clean —
+   and the first tap/keypress retries playback. */
+const BG_YT_ORIGIN = 'https://www.youtube.com';
+
+function bgYtEmbedUrl(ytId) {
+  const origin = /^https?:$/.test(location.protocol)
+    ? `&origin=${encodeURIComponent(location.origin)}` : '';
+  return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}`
+    + `&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3&enablejsapi=1${origin}`;
+}
+
+function bgYtSend(payload) {
+  if (!bgYtEl || !bgYtEl.contentWindow) return;
+  try { bgYtEl.contentWindow.postMessage(JSON.stringify(payload), BG_YT_ORIGIN); } catch { /* not ready */ }
+}
+function bgYtPost(func, args = '') { bgYtSend({ event: 'command', func, args }); }
+
+/* ask the embed to stream its player events to us (same wire protocol the
+   official IFrame API uses, without depending on the API script loading) */
+function bgYtSubscribe() {
+  bgYtSend({ event: 'listening', id: 1, channel: 'widget' });
+  ['onStateChange', 'onReady', 'onError'].forEach(name =>
+    bgYtSend({ event: 'command', func: 'addEventListener', args: [name], id: 1, channel: 'widget' }));
+}
+
+/* preview photo shield: mqdefault instantly, upgraded to maxres when the
+   video actually has one (maxres "exists" as a 120px placeholder otherwise) */
+function setYouTubePoster(ytId, token) {
+  setBgPhoto(`https://i.ytimg.com/vi/${ytId}/mqdefault.jpg`);
+  const probe = new Image();
+  probe.onload = () => {
+    if (token === bgYtLoadToken && bgYtVideoId === ytId && probe.naturalWidth >= 1000) {
+      setBgPhoto(`https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`);
+    }
+  };
+  probe.src = `https://i.ytimg.com/vi/${ytId}/maxresdefault.jpg`;
+}
+
+function bgYtTryPlay() {
+  if (!bgYtActive || bgYtState === 1 || bgYtState === 3) return; // playing / buffering: leave it alone
+  bgYtLastTry = Date.now();
+  if (bgYtState === 0) bgYtPost('seekTo', [0, true]); // ended despite loop: rewind first
+  bgYtPost('mute'); // always (re)start muted — unmuting pre-gesture can block autoplay
+  bgYtPost('playVideo');
+}
+
+function handleBgYtState(state) {
+  if (!bgYtActive || !bgYtEl || typeof state !== 'number') return;
+  bgYtState = state;
+  if (state === 1) { // PLAYING: the only state allowed on screen
+    const wasHidden = !bgYtEl.classList.contains('on');
+    bgYtEl.classList.add('on');
+    if (wasHidden) applyBgSound(); // apply requested sound now that playback is real
+    return;
+  }
+  bgYtEl.classList.remove('on'); // buffering / paused / cued / unstarted -> photo shield
+  if (state === 0) bgYtTryPlay(); // ENDED: loop param should prevent this; rewind + replay anyway
+}
+
+function handleBgYtError() {
+  if (!bgYtActive) return;
+  bgYtState = -1;
+  if (bgYtEl) bgYtEl.classList.remove('on');
+  setBgPhoto(''); // unplayable video: don't leave a misleading preview up
+  if (!bgErrorToasted) {
+    bgErrorToasted = true;
+    toast("That YouTube video can't play as a background.");
+  }
+}
+
+function handleBgYtMessage(e) {
+  if (!bgYtActive || !bgYtAcceptState || !bgYtEl || e.origin !== BG_YT_ORIGIN) return;
+  if (e.source && bgYtEl.contentWindow && e.source !== bgYtEl.contentWindow) return; // not the bg player
+  let data = null;
+  try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
+  if (!data || typeof data.event !== 'string') return;
+  if (data.event === 'onReady') { bgYtReady = true; bgYtSubscribe(); bgYtTryPlay(); return; }
+  if (data.event === 'onStateChange') { handleBgYtState(data.info); return; }
+  if (data.event === 'onError') { handleBgYtError(); return; }
+  if (data.event === 'initialDelivery' || data.event === 'infoDelivery') {
+    const info = data.info || {};
+    if (info.videoData && info.videoData.isPlayable === false) { handleBgYtError(); return; }
+    if (typeof info.playerState === 'number') handleBgYtState(info.playerState);
+  }
+}
+
+function stopBgYtPulse() {
+  if (bgYtPulseTimer) { clearInterval(bgYtPulseTimer); bgYtPulseTimer = null; }
+}
+/* watchdog: keep the handshake alive until ready, then keep nudging a
+   refused/paused autoplay back into playback (never while buffering) */
+function startBgYtPulse() {
+  stopBgYtPulse();
+  bgYtPulseTimer = setInterval(() => {
+    if (!bgYtActive) { stopBgYtPulse(); return; }
+    if (!bgYtReady) { bgYtSubscribe(); return; }
+    if ((bgYtState === -1 || bgYtState === 2 || bgYtState === 5) && Date.now() - bgYtLastTry > 1800) {
+      bgYtTryPlay();
+    }
+  }, 700);
+}
+
+function wireBgYtShield() {
+  if (bgYtShieldWired) return;
+  bgYtShieldWired = true;
+  window.addEventListener('message', handleBgYtMessage);
+  if (bgYtEl) bgYtEl.addEventListener('load', () => {
+    if (!bgYtActive) return;
+    bgYtAcceptState = true; // only trust player messages from this load onward
+    bgYtSubscribe();
+    bgYtTryPlay();
+  });
+  const unlock = () => { // first real gesture: strongest autoplay unblock there is
+    bgYtUserGestured = true;
+    if (!bgYtActive) return;
+    applyBgSound();
+    if (bgYtState !== 1 && bgYtState !== 3) bgYtTryPlay();
+  };
+  window.addEventListener('pointerdown', unlock, { passive: true });
+  window.addEventListener('keydown', unlock);
+  window.addEventListener('focus', () => {
+    if (bgYtActive && bgYtState !== 1 && bgYtState !== 3) bgYtTryPlay();
+  });
+}
+
 function showYouTubeBg(ytId) {
+  if (!bgYtEl) return;
+  wireBgYtShield();
+  const sameVideo = bgYtActive && bgYtVideoId === ytId && !!bgYtEl.src;
   bgYtActive = true;
   stopTintSampler();
   resetAccent(); // cross-origin iframe: can't sample, back to default green
   document.documentElement.style.setProperty('--ambient', NEUTRAL_TINT);
   [bgFront, bgBack].forEach(v => { if (v) { v.classList.remove('on'); v.pause(); } });
-  setBgPhoto(''); // custom bg: gradient behind the iframe
-  bgYtEl.classList.remove('on');
-  bgYtEl.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}`
-    + `&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3&enablejsapi=1`;
-  bgYtEl.addEventListener('load', () => { bgYtEl.classList.add('on'); applyBgSound(); }, { once: true });
   clearTimeout(bgFailTimer);
-  bgFailTimer = setTimeout(() => bgYtEl.classList.add('on'), 4000); // don't hang on slow load
+  if (!sameVideo) {
+    const token = ++bgYtLoadToken;
+    bgYtVideoId = ytId;
+    bgYtState = -1; bgYtReady = false; bgYtAcceptState = false; bgYtLastTry = 0;
+    bgYtEl.classList.remove('on');
+    setYouTubePoster(ytId, token); // photo shield up BEFORE the embed starts loading
+    bgYtEl.src = bgYtEmbedUrl(ytId);
+  } else {
+    // same video re-applied (vibe link, re-save): keep the stream, just nudge it
+    setYouTubePoster(ytId, bgYtLoadToken);
+    if (bgYtState !== 1) bgYtEl.classList.remove('on');
+    bgYtSubscribe();
+    bgYtTryPlay();
+  }
+  startBgYtPulse();
   renderBgSelect();
 }
 
 function hideYouTubeBg() {
+  bgYtLoadToken++;
   bgYtActive = false;
+  bgYtVideoId = null; bgYtState = -1; bgYtReady = false; bgYtAcceptState = false;
+  stopBgYtPulse();
+  if (!bgYtEl) return;
+  bgYtPost('stopVideo');
   bgYtEl.classList.remove('on');
   bgYtEl.removeAttribute('src');
 }
@@ -890,6 +1043,7 @@ function initVisibilitySaver() {
       releaseWake(); // browsers release it anyway when hidden
     } else {
       if (!bgYtActive && bgFront && bgFront.src) bgFront.play().catch(() => {});
+      if (bgYtActive) { bgYtSubscribe(); bgYtTryPlay(); } // returning to the tab: revive a stalled bg
       startTintSampler();
       if (T.running) lockWake();
     }
@@ -1921,6 +2075,7 @@ function init() {
 
   bgFront = $('#bgA'); bgBack = $('#bgB'); bgYtEl = $('#bgYt');
   wireVideoCommon(bgFront); wireVideoCommon(bgBack);
+  wireBgYtShield(); // message/load/gesture listeners must exist before the first embed loads
   // first paint: video preset/custom mp4, or YouTube background engine
   const firstYt = bgCustomYtId();
   if (firstYt) {

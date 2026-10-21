@@ -360,13 +360,40 @@ with sync_playwright() as p:
     pg.evaluate("setVideoSource(bgBack, 'https://cdn.jsdelivr.net/gh/Llunatics/llora@assets/videos/hujan-kaca.mp4')")
     check("crossorigin=anonymous on jsDelivr", pg.evaluate("bgBack.getAttribute('crossorigin')") == "anonymous")
 
-    # --- YouTube background engine ---
+    # --- YouTube background engine: poster shield, reveal ONLY on PLAYING ---
     pg.evaluate("S.bgCustom='https://www.youtube.com/watch?v=aqz-KE-bpKQ'; S.bgId='custom'; save(); switchBackground();")
-    pg.wait_for_timeout(5000)
-    check("yt bg iframe fades on", pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.wait_for_timeout(800)
     ytsrc = pg.eval_on_selector("#bgYt", "el => el.src")
     check("yt embed params (muted/loop/no-controls)",
           all(s in ytsrc for s in ["youtube.com/embed/aqz-KE-bpKQ", "mute=1", "loop=1", "controls=0"]), ytsrc[:90])
+    check("yt poster shield shows while loading",
+          pg.eval_on_selector("#bgPhoto", "el => el.classList.contains('on')")
+          and "i.ytimg.com/vi/aqz-KE-bpKQ/" in pg.eval_on_selector("#bgPhoto", "el => el.src"))
+    check("yt iframe stays hidden before PLAYING (no YT play button)",
+          not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')")
+          and pg.eval_on_selector("#bgYt", "el => getComputedStyle(el).visibility") == "hidden")
+    pg.evaluate("handleBgYtState(3)")  # buffering
+    check("buffering keeps the shield up (no YT spinner)",
+          not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.evaluate("handleBgYtState(1)")  # playing
+    check("PLAYING reveals the iframe",
+          pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.evaluate("handleBgYtState(3)")  # buffering again mid-playback
+    check("mid-playback buffering re-shields",
+          not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.evaluate("handleBgYtState(2)")  # paused (autoplay refused)
+    check("paused keeps the shield up",
+          not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    # the real wire path: a postMessage state event from the embed itself
+    pg.evaluate("""() => {
+      bgYtAcceptState = true;
+      const frame = document.querySelector('#bgYt');
+      window.dispatchEvent(new MessageEvent('message', {
+        data: JSON.stringify({ event: 'onStateChange', info: 1 }),
+        origin: 'https://www.youtube.com', source: frame.contentWindow }));
+    }""")
+    check("postMessage PLAYING reveals the iframe",
+          pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
     pg.evaluate("S.bgCustom=''; S.bgId='hujan-kaca'; save(); switchBackground();")
     pg.wait_for_timeout(1000)
     check("leaving yt bg hides iframe", not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
