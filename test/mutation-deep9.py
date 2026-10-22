@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression tests from deep-9 mutation testing (2026-10-20).
 
-run-tests.py (178 checks) is click/UI-heavy; these pin the exact timer /
+run-tests.py (180 checks) is click/UI-heavy; these pin the exact timer /
 parsing engine values its loose range checks let mutants survive:
 parseMedia types, modeAfterFocus long-vs-short, durSec clamps, tick
 rounding, start()/pause() guards, skip-focus banking, mmssPlain padding.

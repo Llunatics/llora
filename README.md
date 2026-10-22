@@ -72,7 +72,7 @@ python3 -m http.server 8000
 
 ## Tech
 
-Vanilla HTML + CSS + JS. WebAudio (ritual + soundscape synthesis), Wake Lock, Notifications, Media Session, YouTube IFrame API (lazy), Pointer Events drag, `localStorage`. Verified with 178 automated Playwright checks — real clicks across all twelve clock styles, drag persistence, playlist flows, soundscape, vibe-link round-trips, and screenshot review.
+Vanilla HTML + CSS + JS. WebAudio (ritual + soundscape synthesis), Wake Lock, Notifications, Media Session, YouTube IFrame API (lazy), Pointer Events drag, `localStorage`. Verified with 180 automated Playwright checks — real clicks across all twelve clock styles, drag persistence, playlist flows, soundscape, vibe-link round-trips, and screenshot review.
 
 ## License
 

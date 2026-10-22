@@ -370,17 +370,17 @@ with sync_playwright() as p:
     # cover geometry: the iframe box itself is 16:9 and covers the viewport
     geo = pg.eval_on_selector("#bgYt", """el => { const r = el.getBoundingClientRect();
       return { w: r.width, h: r.height, l: r.left, t: r.top, r: r.right, b: r.bottom }; }""")
-    check("yt iframe box is 16:9 and covers the viewport (no letterbox)",
+    check("yt iframe box is 16:9, covers viewport, overscan crops title zone",
           abs(geo["w"] / geo["h"] - 16 / 9) < 0.02
-          and geo["l"] <= 0 and geo["t"] <= 0 and geo["r"] >= 1440 and geo["b"] >= 900,
+          and geo["l"] <= -60 and geo["t"] <= -60 and geo["r"] >= 1440 and geo["b"] >= 900,
           f"{geo['w']:.0f}x{geo['h']:.0f}")
     pg.set_viewport_size({"width": 390, "height": 844})  # portrait phone
     pg.wait_for_timeout(300)
     geo = pg.eval_on_selector("#bgYt", """el => { const r = el.getBoundingClientRect();
       return { w: r.width, h: r.height, l: r.left, t: r.top, r: r.right, b: r.bottom }; }""")
-    check("portrait phone: yt box still 16:9 cover (crops sides, fills height)",
+    check("portrait phone: yt box still 16:9 cover with title cropped off",
           abs(geo["w"] / geo["h"] - 16 / 9) < 0.02
-          and geo["l"] <= 0 and geo["t"] <= 0 and geo["r"] >= 390 and geo["b"] >= 844,
+          and geo["l"] <= -60 and geo["t"] <= -60 and geo["r"] >= 390 and geo["b"] >= 844,
           f"{geo['w']:.0f}x{geo['h']:.0f}")
     pg.set_viewport_size({"width": 1440, "height": 900})
     pg.wait_for_timeout(300)
@@ -393,12 +393,20 @@ with sync_playwright() as p:
     pg.evaluate("handleBgYtState(3)")  # buffering
     check("buffering keeps the shield up (no YT spinner)",
           not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
-    pg.evaluate("handleBgYtState(1)")  # playing
-    check("PLAYING reveals the iframe",
+    pg.evaluate("handleBgYtState(1)")  # playing: settle window starts, wake UI still up in the player
+    pg.wait_for_timeout(300)
+    check("first PLAYING stays shielded while the wake UI fades",
+          not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.wait_for_timeout(2400)  # settle window (2.5s) elapses with PLAYING held
+    check("PLAYING reveals the iframe after the settle window",
           pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
     pg.evaluate("handleBgYtState(3)")  # buffering again mid-playback
     check("mid-playback buffering re-shields",
           not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.evaluate("handleBgYtState(1)")  # resume: short settle (1s)
+    pg.wait_for_timeout(1300)
+    check("resume reveals after the short settle",
+          pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
     pg.evaluate("handleBgYtState(2)")  # paused (autoplay refused)
     check("paused keeps the shield up",
           not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
@@ -413,6 +421,7 @@ with sync_playwright() as p:
         data: JSON.stringify({ event: 'onStateChange', info: 1 }),
         origin: 'https://www.youtube.com', source: frame.contentWindow }));
     }""")
+    pg.wait_for_timeout(1300)  # resume settle window
     check("postMessage PLAYING reveals the iframe",
           pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
     pg.evaluate("S.bgCustom=''; S.bgId='hujan-kaca'; save(); switchBackground();")

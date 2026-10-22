@@ -131,26 +131,34 @@ body {
   transition: opacity .8s ease;
 }
 .bg-video.on { opacity: 1; }
-/* YouTube background engine: TRUE 16:9 COVER sizing. The iframe box itself
-   must be 16:9 and at least viewport-sized on both axes — sizing it to the
-   (portrait) screen instead makes YouTube letterbox the video inside with
-   black bars, no matter how much the frame is scaled afterwards.
-   The iframe stays visibility:hidden until YouTube reports PLAYING;
-   the preview photo underneath covers cueing, paused and buffering
-   states, so the native play button / spinner are never exposed. */
+/* YouTube background engine: TRUE 16:9 COVER sizing, overscanned 1.2x.
+   The iframe box itself must be 16:9 and at least viewport-sized on both
+   axes — sizing it to the (portrait) screen instead makes YouTube
+   letterbox the video inside with black bars, no matter how much the
+   frame is scaled afterwards. The extra 20% overscan pushes the
+   player's own top title bar (and bottom branding) off-screen: plain
+   cover has ZERO vertical crop in portrait, so the title would sit
+   right at the screen's top edge.
+   The iframe stays visibility:hidden until YouTube reports PLAYING and
+   has held it through the settle window (see handleBgYtState); the
+   preview photo underneath covers every other state, so the native
+   play button / spinner / wake overlay are never exposed. */
 .bg-yt {
   position: absolute; top: 50%; left: 50%;
-  width: max(100%, 177.78vh);   /* 16/9 of the viewport height */
-  width: max(100%, 177.78dvh);
-  height: max(100%, 56.25vw);   /* 9/16 of the viewport width */
+  width: max(120%, 213.33vh);   /* 16/9 of the viewport height, x1.2 overscan */
+  width: max(120%, 213.33dvh);
+  height: max(120%, 67.5vw);    /* 9/16 of the viewport width, x1.2 overscan */
   border: 0;
-  transform: translate(-50%, -50%) scale(1.02);
+  transform: translate(-50%, -50%);
   transform-origin: center;
   opacity: 0;
   visibility: hidden;
   transition: opacity .45s ease;
   pointer-events: none;
 }
+/* the preview photo zooms to the same 1.2x framing as the video, so the
+   poster -> video handoff doesn't jump */
+.bg-photo.yt-zoom { transform: scale(1.2); }
 .bg-yt.on { opacity: 1; visibility: visible; }
 .bg-vignette {
   position: absolute; inset: 0;

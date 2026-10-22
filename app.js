@@ -626,11 +626,14 @@ function cycleClockStyle(dir = 1) {
 let bgFront = null, bgBack = null, bgYtEl = null, bgFailTimer = null, bgErrorToasted = false;
 let tintTimer = null, tintOK = true, bgYtActive = false;
 /* YouTube background shield state. The iframe is revealed ONLY after
-   YouTube itself reports PLAYING (state 1); every other state keeps the
-   preview photo in front, hiding YouTube's play/buffering chrome. */
+   YouTube itself reports PLAYING (state 1) and holds it through a short
+   settle window; every other state keeps the preview photo in front,
+   hiding YouTube's play/buffering/wake chrome. */
 let bgYtVideoId = null, bgYtState = -1, bgYtReady = false, bgYtAcceptState = false;
 let bgYtLoadToken = 0, bgYtPulseTimer = null, bgYtLastTry = 0, bgYtUserGestured = false;
 let bgYtShieldWired = false;
+let bgYtRevealTimer = null, bgYtRevealedOnce = false; // settle-window reveal (see handleBgYtState)
+let bgYtLastSubAt = 0, bgYtLastSoundCmd = null;       // handshake throttle / sound-command dedupe
 
 const NEUTRAL_TINT = 'rgba(255,255,255,0.12)';
 const isTrustedVideo = (url) => typeof url === 'string' && url.startsWith(CDN_BASE);
@@ -648,6 +651,8 @@ function bgCustomYtId() {
 function setBgPhoto(url) {
   const img = $('#bgPhoto');
   if (!img) return;
+  // YouTube preview photos get the same 1.2x overscan framing as the video
+  img.classList.toggle('yt-zoom', typeof url === 'string' && url.includes('i.ytimg.com'));
   if (!url) { img.classList.remove('on'); img.removeAttribute('src'); return; }
   if (img.getAttribute('src') !== url) img.src = url;
   img.classList.add('on');
@@ -711,7 +716,12 @@ function initAccordion() {
 function applyBgSound() {
   const muted = !S.bgSound;
   [bgFront, bgBack].forEach(v => { if (v) v.muted = muted; });
-  if (bgYtActive) bgYtPost(muted || !bgYtUserGestured ? 'mute' : 'unMute');
+  if (bgYtActive) {
+    // dedupe: re-sending the same mute/unMute command can re-wake the
+    // player's on-screen UI; only send when the desired state changed
+    const cmd = muted || !bgYtUserGestured ? 'mute' : 'unMute';
+    if (cmd !== bgYtLastSoundCmd) { bgYtLastSoundCmd = cmd; bgYtPost(cmd); }
+  }
 }
 
 /* CORS: crossorigin="anonymous" ONLY for our trusted jsDelivr URLs.
@@ -755,9 +765,12 @@ function wireVideoCommon(v) {
    ignored on mobile, leaving that chrome frozen on screen. So the iframe is
    NEVER revealed on load: a preview photo covers it, the embed is driven over
    the enablejsapi postMessage channel, and the iframe only fades in once
-   YouTube reports PLAYING. Buffering/paused/cued states drop straight back
-   to the photo. If autoplay is refused, the photo simply stays — clean —
-   and the first tap/keypress retries playback. */
+   YouTube reports PLAYING and holds it through a settle window (its wake UI
+   — title bar + center pause button — needs ~2s to fade; revealing instantly
+   showed exactly that). The 1.2x overscan crops the title bar out entirely.
+   Buffering/paused/cued states drop straight back to the photo. If autoplay
+   is refused, the photo simply stays — clean — and the first tap/keypress
+   retries playback. */
 const BG_YT_ORIGIN = 'https://www.youtube.com';
 
 function bgYtEmbedUrl(ytId) {
@@ -779,6 +792,7 @@ function bgYtPost(func, args = '') { bgYtSend({ event: 'command', func, args });
 /* ask the embed to stream its player events to us (same wire protocol the
    official IFrame API uses, without depending on the API script loading) */
 function bgYtSubscribe() {
+  bgYtLastSubAt = Date.now();
   bgYtSend({ event: 'listening', id: 1, channel: 'widget' });
   ['onStateChange', 'onReady', 'onError'].forEach(name =>
     bgYtSend({ event: 'command', func: 'addEventListener', args: [name], id: 1, channel: 'widget' }));
@@ -808,14 +822,29 @@ function bgYtTryPlay() {
 function handleBgYtState(state) {
   if (!bgYtActive || !bgYtEl || typeof state !== 'number') return;
   bgYtState = state;
-  if (state === 1) { // PLAYING: the only state allowed on screen
-    const wasHidden = !bgYtEl.classList.contains('on');
-    bgYtEl.classList.add('on');
-    if (wasHidden) applyBgSound(); // apply requested sound now that playback is real
+  if (state === 1) { // PLAYING
+    if (bgYtEl.classList.contains('on') || bgYtRevealTimer) return; // revealed, or already settling
+    /* SETTLE WINDOW: the moment playback (re)starts, YouTube's player
+       paints its "wake" UI — title bar up top, big pause button in the
+       center — and only fades it out after ~2s of uninterrupted play.
+       Revealing instantly (the old behaviour) showed exactly that UI.
+       So the preview photo stays up a little longer and lets the wake
+       UI burn off behind it; only a player that is still playing after
+       the window gets revealed. First play of a video waits longer
+       than later resumes (their wake UI is shorter-lived). */
+    bgYtRevealTimer = setTimeout(() => {
+      bgYtRevealTimer = null;
+      if (!bgYtActive || bgYtState !== 1 || !bgYtEl) return;
+      bgYtEl.classList.add('on');
+      bgYtRevealedOnce = true;
+      applyBgSound(); // apply requested sound now that playback is real
+    }, bgYtRevealedOnce ? 1000 : 2500);
     return;
   }
+  // any other state: cancel a pending reveal and drop back to the photo NOW
+  if (bgYtRevealTimer) { clearTimeout(bgYtRevealTimer); bgYtRevealTimer = null; }
   bgYtEl.classList.remove('on'); // buffering / paused / cued / unstarted -> photo shield
-  if (state === 0) bgYtTryPlay(); // ENDED: loop param should prevent this; rewind + replay anyway
+  if (state === 0) bgYtTryPlay(); // ENDED: no playlist-loop anymore; rewind + replay behind the shield
 }
 
 function handleBgYtError() {
@@ -835,7 +864,8 @@ function handleBgYtMessage(e) {
   let data = null;
   try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch { return; }
   if (!data || typeof data.event !== 'string') return;
-  if (data.event === 'onReady') { bgYtReady = true; bgYtSubscribe(); bgYtTryPlay(); return; }
+  bgYtReady = true; // ANY valid message is a sign of life — the handshake worked
+  if (data.event === 'onReady') { bgYtSubscribe(); bgYtTryPlay(); return; }
   if (data.event === 'onStateChange') { handleBgYtState(data.info); return; }
   if (data.event === 'onError') { handleBgYtError(); return; }
   if (data.event === 'initialDelivery' || data.event === 'infoDelivery') {
@@ -848,13 +878,18 @@ function handleBgYtMessage(e) {
 function stopBgYtPulse() {
   if (bgYtPulseTimer) { clearInterval(bgYtPulseTimer); bgYtPulseTimer = null; }
 }
-/* watchdog: keep the handshake alive until ready, then keep nudging a
-   refused/paused autoplay back into playback (never while buffering) */
+/* watchdog: until the player shows ANY sign of life, re-send the
+   handshake (throttled — spamming it can keep the player's UI awake);
+   afterwards, nudge a refused/paused autoplay back into playback
+   (never while buffering or playing) */
 function startBgYtPulse() {
   stopBgYtPulse();
   bgYtPulseTimer = setInterval(() => {
     if (!bgYtActive) { stopBgYtPulse(); return; }
-    if (!bgYtReady) { bgYtSubscribe(); return; }
+    if (!bgYtReady) {
+      if (Date.now() - bgYtLastSubAt > 3000) bgYtSubscribe();
+      return;
+    }
     if ((bgYtState === -1 || bgYtState === 2 || bgYtState === 5) && Date.now() - bgYtLastTry > 1800) {
       bgYtTryPlay();
     }
@@ -898,6 +933,8 @@ function showYouTubeBg(ytId) {
     const token = ++bgYtLoadToken;
     bgYtVideoId = ytId;
     bgYtState = -1; bgYtReady = false; bgYtAcceptState = false; bgYtLastTry = 0;
+    if (bgYtRevealTimer) { clearTimeout(bgYtRevealTimer); bgYtRevealTimer = null; }
+    bgYtRevealedOnce = false; bgYtLastSoundCmd = null;
     bgYtEl.classList.remove('on');
     setYouTubePoster(ytId, token); // photo shield up BEFORE the embed starts loading
     bgYtEl.src = bgYtEmbedUrl(ytId);
@@ -916,6 +953,8 @@ function hideYouTubeBg() {
   bgYtLoadToken++;
   bgYtActive = false;
   bgYtVideoId = null; bgYtState = -1; bgYtReady = false; bgYtAcceptState = false;
+  if (bgYtRevealTimer) { clearTimeout(bgYtRevealTimer); bgYtRevealTimer = null; }
+  bgYtRevealedOnce = false; bgYtLastSoundCmd = null;
   stopBgYtPulse();
   if (!bgYtEl) return;
   bgYtPost('stopVideo');
