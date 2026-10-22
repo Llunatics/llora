@@ -364,8 +364,26 @@ with sync_playwright() as p:
     pg.evaluate("S.bgCustom='https://www.youtube.com/watch?v=aqz-KE-bpKQ'; S.bgId='custom'; save(); switchBackground();")
     pg.wait_for_timeout(800)
     ytsrc = pg.eval_on_selector("#bgYt", "el => el.src")
-    check("yt embed params (muted/loop/no-controls)",
-          all(s in ytsrc for s in ["youtube.com/embed/aqz-KE-bpKQ", "mute=1", "loop=1", "controls=0"]), ytsrc[:90])
+    check("yt embed params (muted/no-controls/jsapi, NO playlist mode)",
+          all(s in ytsrc for s in ["youtube.com/embed/aqz-KE-bpKQ", "mute=1", "controls=0", "enablejsapi=1"])
+          and "playlist=" not in ytsrc, ytsrc[:90])
+    # cover geometry: the iframe box itself is 16:9 and covers the viewport
+    geo = pg.eval_on_selector("#bgYt", """el => { const r = el.getBoundingClientRect();
+      return { w: r.width, h: r.height, l: r.left, t: r.top, r: r.right, b: r.bottom }; }""")
+    check("yt iframe box is 16:9 and covers the viewport (no letterbox)",
+          abs(geo["w"] / geo["h"] - 16 / 9) < 0.02
+          and geo["l"] <= 0 and geo["t"] <= 0 and geo["r"] >= 1440 and geo["b"] >= 900,
+          f"{geo['w']:.0f}x{geo['h']:.0f}")
+    pg.set_viewport_size({"width": 390, "height": 844})  # portrait phone
+    pg.wait_for_timeout(300)
+    geo = pg.eval_on_selector("#bgYt", """el => { const r = el.getBoundingClientRect();
+      return { w: r.width, h: r.height, l: r.left, t: r.top, r: r.right, b: r.bottom }; }""")
+    check("portrait phone: yt box still 16:9 cover (crops sides, fills height)",
+          abs(geo["w"] / geo["h"] - 16 / 9) < 0.02
+          and geo["l"] <= 0 and geo["t"] <= 0 and geo["r"] >= 390 and geo["b"] >= 844,
+          f"{geo['w']:.0f}x{geo['h']:.0f}")
+    pg.set_viewport_size({"width": 1440, "height": 900})
+    pg.wait_for_timeout(300)
     check("yt poster shield shows while loading",
           pg.eval_on_selector("#bgPhoto", "el => el.classList.contains('on')")
           and "i.ytimg.com/vi/aqz-KE-bpKQ/" in pg.eval_on_selector("#bgPhoto", "el => el.src"))
@@ -383,6 +401,9 @@ with sync_playwright() as p:
           not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
     pg.evaluate("handleBgYtState(2)")  # paused (autoplay refused)
     check("paused keeps the shield up",
+          not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
+    pg.evaluate("handleBgYtState(0)")  # ended: loop seam must stay behind the shield
+    check("ENDED keeps the shield up while it rewinds",
           not pg.eval_on_selector("#bgYt", "el => el.classList.contains('on')"))
     # the real wire path: a postMessage state event from the embed itself
     pg.evaluate("""() => {

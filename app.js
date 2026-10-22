@@ -746,7 +746,8 @@ function wireVideoCommon(v) {
   });
 }
 
-/* YouTube as fullscreen background: zoomed iframe (chrome cropped), muted+loop.
+/* YouTube as fullscreen background: 16:9 cover iframe (see styles.css),
+   muted, looped via the ENDED handler (no playlist= — see bgYtEmbedUrl).
    Ambient sampler can't read cross-origin iframes -> neutral tint instead.
 
    SHIELD: the raw embed paints YouTube's own poster + big play button while
@@ -762,7 +763,10 @@ const BG_YT_ORIGIN = 'https://www.youtube.com';
 function bgYtEmbedUrl(ytId) {
   const origin = /^https?:$/.test(location.protocol)
     ? `&origin=${encodeURIComponent(location.origin)}` : '';
-  return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&loop=1&playlist=${ytId}`
+  /* NO playlist= param: playlist mode makes YouTube's mobile player paint
+     big prev / play-pause / next touch targets over the video. Looping is
+     done by the ENDED handler instead (rewind + replay behind the shield). */
+  return `https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1`
     + `&controls=0&modestbranding=1&rel=0&playsinline=1&disablekb=1&iv_load_policy=3&enablejsapi=1${origin}`;
 }
 
